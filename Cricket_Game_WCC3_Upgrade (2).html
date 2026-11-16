@@ -1,0 +1,3965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cricket Championship 3D</title>
+  <!-- Load Three.js from CDN (automatic 2D fallback activates if offline) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #070d19;
+      --panel-bg: rgba(11, 20, 38, 0.86);
+      --panel-border: rgba(255, 255, 255, 0.14);
+      --accent: #00e676;
+      --accent-glow: rgba(0, 230, 118, 0.35);
+      --gold: #ffca28;
+      --danger: #ff5252;
+      --info: #29b6f6;
+      --text-main: #f4f7fb;
+      --text-muted: #93a4c3;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-dark);
+      color: var(--text-main);
+    }
+
+    /* Fullscreen Game Viewport */
+    #game-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #fallback-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      z-index: 1;
+    }
+
+    /* Glassmorphic Overlays & Modals */
+    .overlay-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: radial-gradient(circle at top, rgba(16, 36, 72, 0.92), rgba(6, 11, 22, 0.97));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      padding: 24px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+
+    .title-badge {
+      display: inline-block;
+      background: rgba(0, 230, 118, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(0, 230, 118, 0.4);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: clamp(24px, 4vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      background: linear-gradient(90deg, #ffffff, #9be7ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 580px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+
+    select, .pill-group {
+      width: 100%;
+    }
+
+    select {
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+      border: 1px solid var(--panel-border);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #0d192e;
+      color: #fff;
+    }
+
+    .pill-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pill-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .pill-btn.active {
+      background: var(--accent);
+      color: #04130b;
+      border-color: var(--accent);
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+
+    .squad-preview {
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .squad-preview strong {
+      color: #fff;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #00e676, #00b248);
+      color: #03150b;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 25px var(--accent-glow);
+      transition: transform 0.15s ease, filter 0.15s ease;
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Coin Toss Animation */
+    .coin-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px 0;
+    }
+
+    .coin {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ffe57f, #ffb300 70%, #b26a00);
+      border: 4px solid #fff8e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #3e2723;
+      box-shadow: 0 10px 30px rgba(255, 193, 7, 0.4);
+      transition: transform 0.6s ease;
+    }
+
+    .coin.flipping {
+      animation: flipCoin 0.85s ease-in-out infinite;
+    }
+
+    @keyframes flipCoin {
+      0% { transform: rotateY(0deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.18); }
+      100% { transform: rotateY(360deg) scale(1); }
+    }
+
+    /* Top Broadcast HUD */
+    #hud-top {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .hud-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+      border-radius: 14px;
+      padding: 10px 14px;
+      pointer-events: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .score-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .team-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .team-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .main-score {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .overs-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .target-pill {
+      background: rgba(255, 202, 40, 0.16);
+      border: 1px solid rgba(255, 202, 40, 0.45);
+      color: var(--gold);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hud-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--panel-border);
+      color: #fff;
+      padding: 7px 11px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Player Stats Strip */
+    #hud-players {
+      position: fixed;
+      top: 72px;
+      left: 12px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .mini-card {
+      background: rgba(11, 20, 38, 0.8);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 12px;
+      backdrop-filter: blur(6px);
+      min-width: 225px;
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 0;
+    }
+
+    .striker-star {
+      color: var(--accent);
+      font-weight: 900;
+      margin-right: 4px;
+    }
+
+    .over-balls {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+      align-items: center;
+    }
+
+    .ball-chip {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .ball-chip.four { background: var(--info); color: #031521; }
+    .ball-chip.six { background: var(--accent); color: #031521; }
+    .ball-chip.wicket { background: var(--danger); color: #fff; }
+
+    /* Center Event Banner (FOUR, SIX, OUT, Commentary) */
+    #event-banner {
+      position: fixed;
+      top: 26%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      z-index: 30;
+      pointer-events: none;
+      text-align: center;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    #event-banner.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .banner-big {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-shadow: 0 6px 28px rgba(0, 0, 0, 0.85);
+      padding: 6px 26px;
+      border-radius: 16px;
+      background: rgba(7, 13, 25, 0.82);
+      border: 2px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .banner-sub {
+      margin-top: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.78);
+      padding: 4px 14px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    /* Bottom Gameplay Controls */
+    #controls-dock {
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      right: 14px;
+      z-index: 25;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .control-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 12px 16px;
+      pointer-events: auto;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Batting Controls */
+    #batting-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .dir-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.14s;
+      text-align: center;
+    }
+
+    .ctrl-btn.selected {
+      background: rgba(41, 182, 246, 0.25);
+      border-color: var(--info);
+      color: #81d4fa;
+    }
+
+    .ctrl-btn.loft-active {
+      background: rgba(255, 202, 40, 0.25);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    /* Timing / Power Meter Bar */
+    .meter-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .meter-track {
+      position: relative;
+      flex: 1;
+      height: 22px;
+      border-radius: 999px;
+      background: linear-gradient(90deg,
+        #d32f2f 0%,
+        #ffa000 28%,
+        #00e676 44%,
+        #00e676 56%,
+        #ffa000 72%,
+        #d32f2f 100%);
+      border: 2px solid rgba(255, 255, 255, 0.28);
+      overflow: hidden;
+    }
+
+    .meter-sweetspot {
+      position: absolute;
+      left: 44%;
+      width: 12%;
+      top: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.45);
+      border-left: 2px solid #fff;
+      border-right: 2px solid #fff;
+    }
+
+    .meter-cursor {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      width: 6px;
+      background: #ffffff;
+      box-shadow: 0 0 10px #fff, 0 0 4px #000;
+      border-radius: 3px;
+      left: 0%;
+    }
+
+    .action-trigger {
+      padding: 12px 22px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #00e676, #00c853);
+      color: #03150b;
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 4px 18px var(--accent-glow);
+    }
+
+    .action-trigger:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* WCC 2 Style Clean Bowling Overlay */
+    #bowling-controls {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .bowl-left-cluster {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .bowl-types-floating {
+      display: flex;
+      gap: 6px;
+      background: rgba(11, 20, 38, 0.76);
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .wcc-arrow-cluster {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .wcc-dpad-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(11, 20, 38, 0.72);
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .wcc-arrow-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, background 0.15s, border-color 0.15s;
+    }
+
+    .wcc-arrow-btn:hover {
+      background: rgba(0, 230, 118, 0.22);
+      border-color: var(--accent);
+    }
+
+    .wcc-arrow-btn:active {
+      transform: scale(0.92);
+      background: var(--accent);
+      color: #03150b;
+    }
+
+    .wcc-arrow-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      text-align: center;
+      min-width: 64px;
+    }
+
+    .wcc-arrow-label span {
+      display: block;
+      color: var(--accent);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    /* WCC 2 Style Small Vertical Ball Speed & Release Bar on Right */
+    .wcc-speed-dock {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      pointer-events: auto;
+      background: rgba(11, 20, 38, 0.76);
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .wcc-speed-meter-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .wcc-speed-readout {
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.4px;
+    }
+
+    .wcc-speed-track {
+      position: relative;
+      width: 16px;
+      height: 118px;
+      border-radius: 999px;
+      background: linear-gradient(180deg,
+        #ff5252 0%,
+        #00e676 18%,
+        #00e676 34%,
+        #ffca28 55%,
+        #29b6f6 100%);
+      border: 2px solid rgba(255, 255, 255, 0.32);
+      overflow: hidden;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .wcc-speed-sweetspot {
+      position: absolute;
+      top: 18%;
+      height: 16%;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.48);
+      border-top: 1.5px solid #fff;
+      border-bottom: 1.5px solid #fff;
+    }
+
+    .wcc-speed-cursor {
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      height: 5px;
+      background: #ffffff;
+      box-shadow: 0 0 8px #fff, 0 0 4px #000;
+      border-radius: 3px;
+      bottom: 0%;
+    }
+
+    .wcc-speed-tag {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .hint-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stance-adjust,.aim-slider-wrap { width:100%; display:flex; flex-direction:column; gap:5px; }
+    .stance-adjust label,.aim-slider-wrap label { display:flex; justify-content:space-between; gap:8px; color:var(--text-muted); font-size:10px; font-weight:800; letter-spacing:.65px; }
+    .stance-adjust label span,.aim-slider-wrap label span { color:var(--accent); text-transform:none; letter-spacing:0; }
+    .stance-adjust input,.aim-slider-wrap input { width:100%; accent-color:var(--accent); cursor:pointer; touch-action:pan-y; }
+    .aim-slider-wrap { min-width:150px; max-width:220px; padding:7px 10px; border:1px solid var(--panel-border); border-radius:12px; background:rgba(11,20,38,.76); }
+    @media(max-width:650px) {
+      #controls-dock { bottom:8px; left:7px; right:7px; gap:6px; }
+      .control-panel { padding:9px; }
+      .wcc-arrow-cluster { gap:5px; }
+      .wcc-arrow-btn { width:38px; height:38px; }
+      .aim-slider-wrap { min-width:120px; }
+      .stance-adjust { max-width:100%; }
+    }
+
+    /* Scorecard Table Modal */
+    table.score-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 18px;
+      font-size: 12.5px;
+    }
+
+    table.score-table th, table.score-table td {
+      padding: 7px 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    table.score-table th {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    table.score-table td.num, table.score-table th.num {
+      text-align: right;
+    }
+
+    .mode-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 230, 118, 0.15);
+      color: var(--accent);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WebGL Container & 2D Fallback Canvas -->
+  <div id="game-container"></div>
+  <canvas id="fallback-canvas"></canvas>
+
+  <!-- SCREEN 1: MATCH SETUP -->
+  <div id="setup-screen" class="overlay-screen">
+    <div class="card">
+      <div class="title-badge">3D Stadium Edition • 11v11</div>
+      <h1>Cricket Championship 3D</h1>
+      <p class="subtitle">Select your squad, match overs, and enter the floodlit arena. Realistic articulated players, full batting, bowling, fielding &amp; live scorecard.</p>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Your Team (Player)</label>
+          <select id="player-team-select"></select>
+          <div id="player-squad-preview" class="squad-preview"></div>
+        </div>
+        <div class="form-group">
+          <label>Opponent Team (CPU)</label>
+          <select id="cpu-team-select"></select>
+          <div id="cpu-squad-preview" class="squad-preview"></div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label>Match Length (Overs per Innings)</label>
+        <div class="pill-group" id="overs-group">
+          <button type="button" class="pill-btn active" data-overs="2">2 Overs (Blitz)</button>
+          <button type="button" class="pill-btn" data-overs="5">5 Overs (T5)</button>
+          <button type="button" class="pill-btn" data-overs="10">10 Overs (T10)</button>
+        </div>
+      </div>
+
+      <div class="squad-preview" style="margin-bottom: 14px; color: #cbd5e1;">
+        <strong>Controls Guide:</strong><br>
+        • <strong>Batting:</strong> Choose shot direction (<code>A/W/D</code> or buttons), toggle Lofted (<code>L</code>), and press <code>SPACE</code> or <strong>PLAY SHOT</strong> in the green timing zone.<br>
+        • <strong>Bowling:</strong> Select delivery type (<code>1/2/3</code>), adjust line &amp; length with <code>Arrow Keys</code> (<code>◀ ▶</code> Left/Right line &amp; <code>▲ ▼</code> Length), and press <code>SPACE</code> or <strong>BOWL</strong> on the right-side speed bar.<br>
+        • <strong>Camera:</strong> Press <code>🎥 Cam</code> anytime to cycle Broadcast, Close Batter Face-Cam, and Aerial views!
+      </div>
+
+      <button id="start-toss-btn" class="btn-primary">Proceed to Coin Toss →</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: COIN TOSS -->
+  <div id="toss-screen" class="overlay-screen hidden">
+    <div class="card" style="max-width: 460px; text-align: center;">
+      <div class="title-badge">Pitch Report: Hard &amp; Fast</div>
+      <h1>Match Coin Toss</h1>
+      <p id="toss-subtitle" class="subtitle">Call Heads or Tails against the opposing captain.</p>
+
+      <div class="coin-stage">
+        <div id="toss-coin" class="coin">CRICKET</div>
+      </div>
+
+      <div id="toss-call-btns" class="pill-group" style="margin-bottom: 14px;">
+        <button type="button" class="btn-primary" onclick="handleTossCall('HEADS')">Call HEADS</button>
+        <button type="button" class="btn-primary" style="background: linear-gradient(135deg, #29b6f6, #0288d1); color: #fff;" onclick="handleTossCall('TAILS')">Call TAILS</button>
+      </div>
+
+      <div id="toss-result-box" class="hidden">
+        <p id="toss-result-text" style="font-size: 16px; font-weight: 700; margin-bottom: 14px;"></p>
+        <div id="toss-choice-btns" class="pill-group hidden">
+          <button type="button" class="btn-primary" onclick="finalizeTossChoice('BAT')">🏏 Bat First</button>
+          <button type="button" class="btn-primary" style="background: linear-gradient(135deg, #ffca28, #ff8f00);" onclick="finalizeTossChoice('BOWL')">⚾ Bowl First</button>
+        </div>
+        <button id="toss-continue-btn" type="button" class="btn-primary hidden" onclick="startMatchPlay()">Start Match →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: INNINGS BREAK / MATCH SUMMARY / SCORECARD -->
+  <div id="modal-screen" class="overlay-screen hidden">
+    <div class="card" style="max-width: 720px;">
+      <div id="modal-badge" class="title-badge">Match Scorecard</div>
+      <h1 id="modal-title">Innings Summary</h1>
+      <p id="modal-subtitle" class="subtitle"></p>
+
+      <div id="scorecard-content"></div>
+
+      <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
+        <button id="modal-primary-btn" class="btn-primary" style="flex: 2;">Continue</button>
+        <button id="modal-close-btn" class="btn-secondary hidden" style="flex: 1;" onclick="closeScorecardModal()">Resume Play</button>
+        <button class="btn-secondary" style="flex: 1;" onclick="restartFullGame()">Restart Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: PAUSE OVERLAY -->
+  <div id="pause-screen" class="overlay-screen hidden">
+    <div class="card" style="max-width: 400px; text-align: center;">
+      <div class="title-badge">Game Paused</div>
+      <h1>Match Paused</h1>
+      <p class="subtitle">Take a breather or inspect the match scorecard.</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-primary" onclick="togglePause(false)">▶ Resume Match</button>
+        <button class="btn-secondary" onclick="openScorecardModal(false)">📋 View Full Scorecard</button>
+        <button class="btn-secondary" onclick="toggleCameraView()">🎥 Switch Camera Angle</button>
+        <button class="btn-secondary" style="border-color: rgba(255,82,82,0.4); color: #ff8a80;" onclick="restartFullGame()">↻ Restart Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IN-GAME TOP HUD -->
+  <div id="hud-top" class="hidden">
+    <div class="hud-box score-strip">
+      <div class="team-badge">
+        <span id="hud-bat-dot" class="team-dot"></span>
+        <span id="hud-bat-name">PAK</span>
+        <span style="color: var(--text-muted); font-weight: 500; font-size: 12px;">vs</span>
+        <span id="hud-bowl-name" style="color: var(--text-muted);">AUS</span>
+      </div>
+      <div id="hud-score" class="main-score">0/0</div>
+      <div id="hud-overs" class="overs-text">(0.0 / 2.0 ov) • CRR: 0.00</div>
+      <div id="hud-target" class="target-pill hidden">Target: 0</div>
+      <span id="render-mode-badge" class="mode-pill">3D WebGL</span>
+    </div>
+
+    <div class="hud-box hud-actions">
+      <button class="icon-btn" onclick="openScorecardModal(false)" title="Full Scorecard">📋 Scorecard</button>
+      <button class="icon-btn" onclick="toggleCameraView()" title="Switch Camera View">🎥 Cam</button>
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Mute/Unmute">🔊</button>
+      <button class="icon-btn" onclick="togglePause(true)" title="Pause Game (P)">⏸ Pause</button>
+    </div>
+  </div>
+
+  <!-- IN-GAME BATTERS & BOWLER MINI HUD -->
+  <div id="hud-players" class="hidden">
+    <div class="mini-card">
+      <div class="player-row">
+        <span><span class="striker-star">▶</span><strong id="hud-striker-name">Batter 1</strong></span>
+        <span id="hud-striker-score" style="font-weight: 800;">0 (0)</span>
+      </div>
+      <div class="player-row" style="color: var(--text-muted);">
+        <span id="hud-nonstriker-name">Batter 2</span>
+        <span id="hud-nonstriker-score">0 (0)</span>
+      </div>
+    </div>
+
+    <div class="mini-card">
+      <div class="player-row">
+        <span>⚾ <strong id="hud-bowler-name">Bowler</strong></span>
+        <span id="hud-bowler-fig" style="color: var(--info); font-weight: 700;">0-0 (0.0)</span>
+      </div>
+      <div class="over-balls" id="hud-over-balls"></div>
+    </div>
+  </div>
+
+  <!-- CENTER SHOT/WICKET BANNER -->
+  <div id="event-banner">
+    <div id="banner-big" class="banner-big">SIX!</div>
+    <div id="banner-sub" class="banner-sub">Massive hit over long-on!</div>
+  </div>
+
+  <!-- BOTTOM PLAYABLE CONTROLS -->
+  <div id="controls-dock" class="hidden">
+    <!-- BATTING PANEL -->
+    <div id="batting-controls" class="control-panel hidden">
+      <div class="hint-text">
+        <span>🏏 <strong>YOUR BATTING:</strong> Pick Shot Direction &amp; Time the Ball!</span>
+        <span id="bat-status-hint" style="color: var(--accent); font-weight: 700;">Select Shot</span>
+      </div>
+
+      <div class="dir-buttons">
+        <button type="button" class="ctrl-btn" data-dir="LEG" onclick="selectShotDir('LEG')">⬅ Leg / On (A)</button>
+        <button type="button" class="ctrl-btn selected" data-dir="STRAIGHT" onclick="selectShotDir('STRAIGHT')">⬆ Straight (W)</button>
+        <button type="button" class="ctrl-btn" data-dir="OFF" onclick="selectShotDir('OFF')">➡ Off Side (D)</button>
+        <button type="button" id="loft-btn" class="ctrl-btn" onclick="toggleLoft()">🚀 Grounded (L)</button>
+      </div>
+
+      <div class="stance-adjust">
+        <label for="batter-stance">BATTER STANCE <span id="batter-stance-readout">Centre</span></label>
+        <input id="batter-stance" type="range" min="-0.65" max="0.65" step="0.05" value="0" aria-label="Adjust batter stance across crease">
+      </div>
+      <div class="meter-wrapper">
+        <div class="meter-track" id="bat-meter-track">
+          <div class="meter-sweetspot"></div>
+          <div class="meter-cursor" id="bat-meter-cursor"></div>
+        </div>
+        <button type="button" id="bat-swing-btn" class="action-trigger" onclick="triggerBatSwing()">PLAY SHOT (SPACE)</button>
+      </div>
+    </div>
+
+    <!-- BOWLING PANEL (WCC 2 Style Side Arrows + Compact Speed Bar) -->
+    <div id="bowling-controls" class="hidden">
+      <div class="bowl-left-cluster">
+        <div class="bowl-types-floating">
+          <button type="button" class="ctrl-btn selected" data-btype="FAST" onclick="selectBowlType('FAST')">⚡ Fast</button>
+          <button type="button" class="ctrl-btn" data-btype="SWING" onclick="selectBowlType('SWING')">🌀 Swing</button>
+          <button type="button" class="ctrl-btn" data-btype="SPIN" onclick="selectBowlType('SPIN')">🔄 Spin</button>
+        </div>
+
+        <div class="wcc-arrow-cluster">
+          <div class="aim-slider-wrap">
+            <label for="bowl-aim-slider">PITCH TARGET <span id="bowl-aim-readout">Good length • Stumps</span></label>
+            <input id="bowl-aim-slider" type="range" min="0" max="100" value="50" aria-label="Slide bowling line and length target">
+          </div>
+          <!-- Left / Right Turn & Line Arrows -->
+          <div class="wcc-dpad-row">
+            <button type="button" class="wcc-arrow-btn" onclick="nudgeBowlAim(-1, 0)" title="Aim Left / Leg (Left Arrow)">◀</button>
+            <div class="wcc-arrow-label">Line/Turn<span id="bowl-line-label">Stumps</span></div>
+            <button type="button" class="wcc-arrow-btn" onclick="nudgeBowlAim(1, 0)" title="Aim Right / Off (Right Arrow)">▶</button>
+          </div>
+
+          <!-- Pitch Length Up / Down Arrows -->
+          <div class="wcc-dpad-row">
+            <button type="button" class="wcc-arrow-btn" onclick="nudgeBowlAim(0, -1)" title="Fuller / Yorker (Up Arrow)">▲</button>
+            <div class="wcc-arrow-label">Length<span id="bowl-len-label">Good</span></div>
+            <button type="button" class="wcc-arrow-btn" onclick="nudgeBowlAim(0, 1)" title="Shorter / Bouncer (Down Arrow)">▼</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Small WCC 2 Style Vertical Speed & Accuracy Meter + Bowl Button -->
+      <div class="wcc-speed-dock">
+        <div class="wcc-speed-meter-wrap">
+          <div id="bowl-speed-readout" class="wcc-speed-readout">138 km/h</div>
+          <div class="wcc-speed-track" id="bowl-meter-track">
+            <div class="wcc-speed-sweetspot"></div>
+            <div class="wcc-speed-cursor" id="bowl-meter-cursor"></div>
+          </div>
+          <div class="wcc-speed-tag">SPEED</div>
+        </div>
+        <button type="button" id="bowl-release-btn" class="action-trigger" onclick="triggerBowlRelease()">BOWL</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * ============================================================================
+ * CRICKET CHAMPIONSHIP 3D - COMPLETE SINGLE-FILE ENGINE (WCC 2 REALISTIC HUMANS)
+ * ============================================================================
+ */
+
+// -----------------------------
+// 1. TEAMS & 11-PLAYER ROSTERS
+// -----------------------------
+const TEAMS = {
+  PAK: {
+    code: 'PAK',
+    name: 'Pakistan',
+    primary: '#00a859',
+    secondary: '#d4af37',
+    players: [
+      { name: 'Saim Ayub', role: 'BAT', bat: 85, bowl: 30 },
+      { name: 'Babar Azam (c)', role: 'BAT', bat: 94, bowl: 20 },
+      { name: 'Mohammad Rizwan (wk)', role: 'WK', bat: 90, bowl: 10 },
+      { name: 'Fakhar Zaman', role: 'BAT', bat: 86, bowl: 25 },
+      { name: 'Salman Ali Agha', role: 'AR', bat: 80, bowl: 68 },
+      { name: 'Iftikhar Ahmed', role: 'AR', bat: 79, bowl: 65 },
+      { name: 'Shadab Khan', role: 'AR', bat: 76, bowl: 82 },
+      { name: 'Shaheen Afridi', role: 'BOWL', bat: 52, bowl: 93 },
+      { name: 'Naseem Shah', role: 'BOWL', bat: 45, bowl: 90 },
+      { name: 'Haris Rauf', role: 'BOWL', bat: 35, bowl: 89 },
+      { name: 'Abrar Ahmed', role: 'BOWL', bat: 30, bowl: 85 }
+    ]
+  },
+  AUS: {
+    code: 'AUS',
+    name: 'Australia',
+    primary: '#f4c430',
+    secondary: '#006847',
+    players: [
+      { name: 'Travis Head', role: 'BAT', bat: 92, bowl: 45 },
+      { name: 'Mitchell Marsh (c)', role: 'AR', bat: 86, bowl: 70 },
+      { name: 'Steve Smith', role: 'BAT', bat: 90, bowl: 30 },
+      { name: 'Glenn Maxwell', role: 'AR', bat: 88, bowl: 74 },
+      { name: 'Marcus Stoinis', role: 'AR', bat: 82, bowl: 72 },
+      { name: 'Tim David', role: 'BAT', bat: 83, bowl: 25 },
+      { name: 'Josh Inglis (wk)', role: 'WK', bat: 80, bowl: 10 },
+      { name: 'Pat Cummins', role: 'BOWL', bat: 62, bowl: 92 },
+      { name: 'Mitchell Starc', role: 'BOWL', bat: 55, bowl: 93 },
+      { name: 'Adam Zampa', role: 'BOWL', bat: 32, bowl: 89 },
+      { name: 'Josh Hazlewood', role: 'BOWL', bat: 30, bowl: 91 }
+    ]
+  },
+  IND: {
+    code: 'IND',
+    name: 'India',
+    primary: '#1976d2',
+    secondary: '#ff6f00',
+    players: [
+      { name: 'Rohit Sharma (c)', role: 'BAT', bat: 92, bowl: 25 },
+      { name: 'Yashasvi Jaiswal', role: 'BAT', bat: 88, bowl: 20 },
+      { name: 'Virat Kohli', role: 'BAT', bat: 95, bowl: 25 },
+      { name: 'Suryakumar Yadav', role: 'BAT', bat: 91, bowl: 15 },
+      { name: 'Rishabh Pant (wk)', role: 'WK', bat: 85, bowl: 10 },
+      { name: 'Hardik Pandya', role: 'AR', bat: 84, bowl: 82 },
+      { name: 'Ravindra Jadeja', role: 'AR', bat: 78, bowl: 86 },
+      { name: 'Axar Patel', role: 'AR', bat: 74, bowl: 84 },
+      { name: 'Kuldeep Yadav', role: 'BOWL', bat: 38, bowl: 89 },
+      { name: 'Jasprit Bumrah', role: 'BOWL', bat: 35, bowl: 96 },
+      { name: 'Arshdeep Singh', role: 'BOWL', bat: 30, bowl: 87 }
+    ]
+  },
+  ENG: {
+    code: 'ENG',
+    name: 'England',
+    primary: '#1565c0',
+    secondary: '#d32f2f',
+    players: [
+      { name: 'Phil Salt', role: 'BAT', bat: 86, bowl: 10 },
+      { name: 'Jos Buttler (c/wk)', role: 'WK', bat: 92, bowl: 10 },
+      { name: 'Will Jacks', role: 'AR', bat: 83, bowl: 68 },
+      { name: 'Jonny Bairstow', role: 'BAT', bat: 85, bowl: 10 },
+      { name: 'Harry Brook', role: 'BAT', bat: 87, bowl: 20 },
+      { name: 'Liam Livingstone', role: 'AR', bat: 82, bowl: 74 },
+      { name: 'Moeen Ali', role: 'AR', bat: 77, bowl: 78 },
+      { name: 'Sam Curran', role: 'AR', bat: 74, bowl: 82 },
+      { name: 'Jofra Archer', role: 'BOWL', bat: 48, bowl: 91 },
+      { name: 'Adil Rashid', role: 'BOWL', bat: 40, bowl: 88 },
+      { name: 'Mark Wood', role: 'BOWL', bat: 36, bowl: 90 }
+    ]
+  }
+};
+
+// Camera looks from -Z toward +Z: +X is screen-left (Leg side), -X is screen-right (Off side)
+const FIELD_POSITIONS = [
+  { name: 'Slip', x: -3.2, z: -13.2 },
+  { name: 'Point', x: -24, z: -9.5 },
+  { name: 'Cover', x: -27, z: 4 },
+  { name: 'Mid-Off', x: -12, z: 22 },
+  { name: 'Mid-On', x: 12, z: 22 },
+  { name: 'Mid-Wicket', x: 26, z: 5 },
+  { name: 'Square Leg', x: 25, z: -9.5 },
+  { name: 'Fine Leg', x: 15, z: -32 },
+  { name: 'Long-On', x: 16, z: 46 }
+];
+
+// -----------------------------
+// 2. SOUND ENGINE (WEB AUDIO)
+// -----------------------------
+class SoundFX {
+  constructor() {
+    this.enabled = true;
+    this.ctx = null;
+  }
+
+  ensureCtx() {
+    if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playBatHit(power = 0.8) {
+    if (!this.enabled) return;
+    this.ensureCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(160 + power * 140, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+    gain.gain.setValueAtTime(0.45 * power, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.16);
+  }
+
+  playWicket() {
+    if (!this.enabled) return;
+    this.ensureCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    [320, 210, 140].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.25, now + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.19);
+    });
+  }
+
+  playCrowdCheer(intensity = 0.6) {
+    if (!this.enabled) return;
+    this.ensureCtx();
+    if (!this.ctx) return;
+    const duration = 1.1;
+    const bufferSize = this.ctx.sampleRate * duration;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 650;
+
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0.22 * intensity;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    noise.start();
+  }
+}
+
+const sfx = new SoundFX();
+
+// -----------------------------
+// 3. GAME STATE & CRICKET LOGIC
+// -----------------------------
+const state = {
+  playerTeamCode: 'PAK',
+  cpuTeamCode: 'AUS',
+  totalOvers: 2,
+  tossWinner: null,
+  tossDecision: null,
+  inningsIndex: 0,
+  targetScore: null,
+  paused: false,
+  pendingNextDelivery: false,
+  cameraMode: 0, // 0: Auto broadcast, 1: Aerial, 2: Batter face-cam
+  cameraEvent: '',
+  cameraEventUntil: 0,
+
+  // 'IDLE' | 'AIMING' | 'BOWLING_RUNUP' | 'BALL_IN_FLIGHT' | 'BALL_HIT' | 'BALL_DEAD' | 'MATCH_OVER'
+  phase: 'IDLE',
+
+  // Batting selection & timing meter
+  shotDir: 'STRAIGHT',
+  shotLoft: false,
+  batMeterVal: 0.5,
+  batMeterDir: 1,
+  batSwung: false,
+  batTimingQuality: 0,
+
+  // Bowling selection & meter (+X = screen-left/Leg, -X = screen-right/Off)
+  bowlType: 'FAST',
+  bowlAimX: 0,
+  bowlAimZ: -4.5,
+  batterStanceX: 0,
+  fielderDiveTimer: 0,
+  fielderDiveDir: 1,
+  cameraShake: 0,
+  ballHeldByBowler: false,
+  bowlMeterVal: 0.5,
+  bowlMeterDir: 1,
+  bowlAccuracy: 0.85,
+
+  // Ball & fielder physics state (shared by both 3D and 2D renderers)
+  ballPos: { x: 0, y: 2.0, z: 10.5 },
+  ballVel: { x: 0, y: 0, z: 0 },
+  bowlerPosZ: 14.5,
+  ballBounces: 0,
+  ballSwingX: 0,
+  ballSpinX: 0,
+  activeFielderIdx: -1,
+  fielderPositions: FIELD_POSITIONS.map(fp => ({ x: fp.x, z: fp.z })),
+  deliveryTimer: 0,
+
+  innings: [null, null]
+};
+
+function createInningsState(battingCode, bowlingCode) {
+  const batTeam = TEAMS[battingCode];
+  const bowlTeam = TEAMS[bowlingCode];
+
+  const batters = batTeam.players.map((p, idx) => ({
+    ...p,
+    index: idx,
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    status: idx < 2 ? 'batting' : 'yet_to_bat',
+    dismissal: ''
+  }));
+
+  const bowlers = bowlTeam.players.map((p, idx) => ({
+    ...p,
+    index: idx,
+    oversBalls: 0,
+    runsConceded: 0,
+    wickets: 0
+  }));
+
+  return {
+    battingCode,
+    bowlingCode,
+    runs: 0,
+    wickets: 0,
+    legalBalls: 0,
+    strikerIdx: 0,
+    nonStrikerIdx: 1,
+    nextBatterIdx: 2,
+    currentBowlerIdx: 7,
+    lastBowlerIdx: -1,
+    overHistory: [],
+    batters,
+    bowlers
+  };
+}
+
+function getCurrentInnings() {
+  return state.innings[state.inningsIndex];
+}
+
+function isPlayerBatting() {
+  const inn = getCurrentInnings();
+  return inn && inn.battingCode === state.playerTeamCode;
+}
+
+function formatOvers(legalBalls) {
+  const ov = Math.floor(legalBalls / 6);
+  const b = legalBalls % 6;
+  return `${ov}.${b}`;
+}
+
+// -----------------------------
+// 4. UI SETUP & TOSS HANDLERS
+// -----------------------------
+function initSetupUI() {
+  const pSelect = document.getElementById('player-team-select');
+  const cSelect = document.getElementById('cpu-team-select');
+
+  Object.values(TEAMS).forEach(team => {
+    const opt1 = document.createElement('option');
+    opt1.value = team.code;
+    opt1.textContent = `${team.name} (${team.code})`;
+    pSelect.appendChild(opt1);
+
+    const opt2 = document.createElement('option');
+    opt2.value = team.code;
+    opt2.textContent = `${team.name} (${team.code})`;
+    cSelect.appendChild(opt2);
+  });
+
+  pSelect.value = 'PAK';
+  cSelect.value = 'AUS';
+
+  const updatePreviews = () => {
+    if (pSelect.value === cSelect.value) {
+      const keys = Object.keys(TEAMS);
+      cSelect.value = keys.find(k => k !== pSelect.value);
+    }
+    state.playerTeamCode = pSelect.value;
+    state.cpuTeamCode = cSelect.value;
+
+    const renderSquad = (code) => {
+      const t = TEAMS[code];
+      const names = t.players.map(p => p.name.split(' ')[0]).join(', ');
+      return `<strong>11-Player XI:</strong> ${names}`;
+    };
+    document.getElementById('player-squad-preview').innerHTML = renderSquad(state.playerTeamCode);
+    document.getElementById('cpu-squad-preview').innerHTML = renderSquad(state.cpuTeamCode);
+  };
+
+  pSelect.addEventListener('change', updatePreviews);
+  cSelect.addEventListener('change', updatePreviews);
+  updatePreviews();
+
+  const stanceSlider = document.getElementById('batter-stance');
+  if (stanceSlider) stanceSlider.addEventListener('input', e => {
+    state.batterStanceX = Number(e.target.value);
+    const readout = document.getElementById('batter-stance-readout');
+    if (readout) readout.textContent = Math.abs(state.batterStanceX) < 0.08 ? 'Centre' : (state.batterStanceX > 0 ? 'Leg side' : 'Off side');
+    if (use3D && strikerRig) strikerRig.root.position.x = state.batterStanceX;
+  });
+  const aimSlider = document.getElementById('bowl-aim-slider');
+  if (aimSlider) aimSlider.addEventListener('input', e => {
+    const v = Number(e.target.value) / 100;
+    state.bowlAimX = (v - 0.5) * 2.7;
+    state.bowlAimZ = -2.2 - v * 5.2;
+    updateBowlAimReadout();
+    updatePitchTargetVisual(true);
+  });
+
+  document.querySelectorAll('#overs-group .pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#overs-group .pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.totalOvers = parseInt(btn.dataset.overs, 10);
+    });
+  });
+
+  document.getElementById('start-toss-btn').addEventListener('click', () => {
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('toss-screen').classList.remove('hidden');
+    document.getElementById('toss-subtitle').textContent =
+      `${TEAMS[state.playerTeamCode].name} vs ${TEAMS[state.cpuTeamCode].name} • ${state.totalOvers} Overs Match`;
+  });
+}
+
+function handleTossCall(call) {
+  const coin = document.getElementById('toss-coin');
+  const callBtns = document.getElementById('toss-call-btns');
+  callBtns.classList.add('hidden');
+  coin.classList.add('flipping');
+
+  setTimeout(() => {
+    coin.classList.remove('flipping');
+    const outcome = Math.random() < 0.5 ? 'HEADS' : 'TAILS';
+    coin.textContent = outcome;
+
+    const resultBox = document.getElementById('toss-result-box');
+    const resultText = document.getElementById('toss-result-text');
+    resultBox.classList.remove('hidden');
+
+    if (call === outcome) {
+      state.tossWinner = 'PLAYER';
+      resultText.innerHTML = `It's <strong>${outcome}</strong>! You won the toss. Choose your strategy:`;
+      document.getElementById('toss-choice-btns').classList.remove('hidden');
+    } else {
+      state.tossWinner = 'CPU';
+      const cpuChoice = Math.random() < 0.55 ? 'BAT' : 'BOWL';
+      state.tossDecision = cpuChoice;
+      resultText.innerHTML = `It's <strong>${outcome}</strong>! ${TEAMS[state.cpuTeamCode].name} won the toss and elected to <strong>${cpuChoice}</strong> first.`;
+      document.getElementById('toss-continue-btn').classList.remove('hidden');
+    }
+  }, 950);
+}
+
+function finalizeTossChoice(choice) {
+  state.tossDecision = choice;
+  startMatchPlay();
+}
+
+function startMatchPlay() {
+  document.getElementById('toss-screen').classList.add('hidden');
+  document.getElementById('hud-top').classList.remove('hidden');
+  document.getElementById('hud-players').classList.remove('hidden');
+  document.getElementById('controls-dock').classList.remove('hidden');
+
+  const playerBatsFirst =
+    (state.tossWinner === 'PLAYER' && state.tossDecision === 'BAT') ||
+    (state.tossWinner === 'CPU' && state.tossDecision === 'BOWL');
+
+  const firstBat = playerBatsFirst ? state.playerTeamCode : state.cpuTeamCode;
+  const firstBowl = playerBatsFirst ? state.cpuTeamCode : state.playerTeamCode;
+
+  state.inningsIndex = 0;
+  state.targetScore = null;
+  state.innings[0] = createInningsState(firstBat, firstBowl);
+
+  applyTeamAppearanceTo3D(firstBat, firstBowl);
+  updateHUD();
+  prepareNextDelivery();
+}
+
+// -----------------------------
+// 5. DELIVERY CYCLE & CONTROLS
+// -----------------------------
+let cpuBowlTimer = null;
+
+function prepareNextDelivery() {
+  clearTimeout(cpuBowlTimer);
+  state.pendingNextDelivery = false;
+
+  const inn = getCurrentInnings();
+  if (!inn) return;
+
+  // Check if innings ended
+  const maxBalls = state.totalOvers * 6;
+  const targetReached = state.inningsIndex === 1 && inn.runs >= state.targetScore;
+  if (inn.wickets >= 10 || inn.legalBalls >= maxBalls || targetReached) {
+    handleInningsEnd();
+    return;
+  }
+
+  // Refresh player appearance for active striker, non-striker, and current bowler
+  refreshActivePlayerAppearances();
+
+  // Reset ball & characters
+  state.phase = 'AIMING';
+  state.batSwung = false;
+  state.batTimingQuality = 0;
+  state.ballBounces = 0;
+  state.activeFielderIdx = -1;
+  state.fielderDiveTimer = 0;
+  state.deliveryTimer = 0;
+  state.bowlerPosZ = 14.5;
+  state.ballPos = { x: 0.4, y: 2.0, z: 11.2 };
+  state.ballVel = { x: 0, y: 0, z: 0 };
+  state.ballHeldByBowler = false;
+  state.deliveryTargetX = 0;
+  state.deliveryTargetZ = -4.5;
+
+  resetActorsPositions();
+  updateHUD();
+
+  const batPanel = document.getElementById('batting-controls');
+  const bowlPanel = document.getElementById('bowling-controls');
+
+  if (isPlayerBatting()) {
+    batPanel.classList.remove('hidden');
+    bowlPanel.classList.add('hidden');
+    updatePitchTargetVisual(false);
+    document.getElementById('bat-swing-btn').disabled = false;
+    document.getElementById('bat-status-hint').textContent = 'Bowler running in...';
+
+    const types = ['FAST', 'SWING', 'SPIN'];
+    state.bowlType = types[Math.floor(Math.random() * types.length)];
+    state.bowlAimX = (Math.random() - 0.5) * 1.3;
+    state.bowlAimZ = -7.5 + Math.random() * 6.5;
+    state.bowlAccuracy = 0.65 + Math.random() * 0.3;
+
+    cpuBowlTimer = setTimeout(() => {
+      if (state.phase === 'AIMING' && !state.paused) {
+        startBowlingRunup();
+      }
+    }, 950);
+  } else {
+    batPanel.classList.add('hidden');
+    bowlPanel.classList.remove('hidden');
+    document.getElementById('bowl-release-btn').disabled = false;
+    selectBowlType(state.bowlType);
+    updatePitchTargetVisual(true);
+    updateBowlAimReadout();
+  }
+}
+
+function selectShotDir(dir) {
+  state.shotDir = dir;
+  document.querySelectorAll('#batting-controls .ctrl-btn[data-dir]').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.dir === dir);
+  });
+}
+
+function toggleLoft() {
+  state.shotLoft = !state.shotLoft;
+  const btn = document.getElementById('loft-btn');
+  btn.classList.toggle('loft-active', state.shotLoft);
+  btn.textContent = state.shotLoft ? '🔥 Lofted (L)' : '🚀 Grounded (L)';
+}
+
+function selectBowlType(type) {
+  state.bowlType = type;
+  document.querySelectorAll('#bowling-controls .ctrl-btn[data-btype]').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.btype === type);
+  });
+}
+
+// dirX: -1 = Screen Left (+X, Leg side), +1 = Screen Right (-X, Off side)
+// dirZ: -1 = Fuller / Yorker (-Z), +1 = Shorter / Bouncer (+Z)
+function nudgeBowlAim(dirX, dirZ) {
+  if (state.phase !== 'AIMING' || isPlayerBatting()) return;
+  state.bowlAimX = Math.max(-1.4, Math.min(1.4, state.bowlAimX - dirX * 0.28));
+  state.bowlAimZ = Math.max(-8.5, Math.min(1.5, state.bowlAimZ + dirZ * 1.1));
+  updatePitchTargetVisual(true);
+  updateBowlAimReadout();
+}
+
+function updateBowlAimReadout() {
+  const lineEl = document.getElementById('bowl-line-label');
+  const lenEl = document.getElementById('bowl-len-label');
+  if (lineEl) {
+    if (state.bowlAimX > 0.35) lineEl.textContent = 'Left / Leg';
+    else if (state.bowlAimX < -0.35) lineEl.textContent = 'Right / Off';
+    else lineEl.textContent = 'Stumps';
+  }
+  if (lenEl) {
+    if (state.bowlAimZ < -6.2) lenEl.textContent = 'Yorker';
+    else if (state.bowlAimZ < -3.2) lenEl.textContent = 'Good';
+    else if (state.bowlAimZ < -0.5) lenEl.textContent = 'Short';
+    else lenEl.textContent = 'Bouncer';
+  }
+  const slider = document.getElementById('bowl-aim-slider');
+  if (slider) slider.value = String(Math.max(0, Math.min(100, Math.round(((-2.2 - state.bowlAimZ) / 5.2) * 100))));
+  const readout = document.getElementById('bowl-aim-readout');
+  if (readout) readout.textContent = `${lenEl ? lenEl.textContent : 'Length'} • ${lineEl ? lineEl.textContent : 'Stumps'}`;
+}
+
+function triggerBowlRelease() {
+  if (state.phase !== 'AIMING' || isPlayerBatting() || state.paused) return;
+  document.getElementById('bowl-release-btn').disabled = true;
+
+  const distFromSweet = Math.abs(state.bowlMeterVal - 0.76);
+  state.bowlAccuracy = Math.max(0.25, 1 - distFromSweet * 1.85);
+  updatePitchTargetVisual(false);
+  startBowlingRunup();
+}
+
+function startBowlingRunup() {
+  state.phase = 'BOWLING_RUNUP';
+  state.deliveryTimer = 0;
+  state.ballHeldByBowler = true;
+  state.ballVel = { x: 0, y: 0, z: 0 };
+  if (use3D && bowlerRig && ballMesh) {
+    // Scene-graph parent is the actual right-hand mesh, so the ball cannot drift
+    // independently while the bowler is running into the delivery stride.
+    bowlerRig.rightArm.handAnchor.add(ballMesh);
+    ballMesh.position.set(0, 0, 0);
+    ballMesh.scale.set(1, 1, 1);
+    ballMesh.rotation.set(0, 0, 0);
+  }
+  if (isPlayerBatting()) {
+    document.getElementById('bat-status-hint').textContent = 'Wait for release...';
+  }
+}
+
+function releaseBallFromHand() {
+  // Update the complete rig hierarchy before sampling the actual bowling hand.
+  if (use3D && scene && bowlerRig) {
+    scene.updateMatrixWorld(true);
+    const handWorld = new THREE.Vector3();
+    bowlerRig.rightArm.handAnchor.getWorldPosition(handWorld);
+    state.ballPos = { x: handWorld.x, y: handWorld.y, z: handWorld.z };
+  } else {
+    state.ballPos = { x: 0.28, y: 2.18, z: 9.15 };
+  }
+
+  // Sample the completed release pose once; the ball is no longer hand-driven after this frame.
+  state.ballHeldByBowler = false;
+  if (use3D && scene && ballMesh && ballMesh.parent !== scene) {
+    // Detach at the sampled release frame while preserving its exact world pose.
+    scene.attach(ballMesh);
+    ballMesh.position.set(state.ballPos.x, state.ballPos.y, state.ballPos.z);
+    ballMesh.scale.set(1, 1, 1);
+  }
+  state.phase = 'BALL_IN_FLIGHT';
+  state.ballBounces = 0;
+  if (isPlayerBatting()) {
+    document.getElementById('bat-status-hint').textContent = 'Swing in the green zone!';
+  }
+
+  const releaseHeight = state.ballPos.y;
+  let baseSpeed = state.bowlType === 'FAST' ? 25.5 : (state.bowlType === 'SWING' ? 22.2 : 17.4);
+  baseSpeed *= (0.9 + state.bowlAccuracy * 0.16);
+
+  const jitterX = (1 - state.bowlAccuracy) * (Math.random() - 0.5) * 0.9;
+  const targetX = state.bowlAimX + jitterX;
+  const targetZ = state.bowlAimZ;
+  state.deliveryTargetX = targetX;
+  state.deliveryTargetZ = targetZ;
+
+  // Solve the initial vertical velocity so the ball reaches the chosen pitch mark
+  // under gravity, rather than visually gliding down to an arbitrary floor collision.
+  const distToBounce = Math.max(0.5, state.ballPos.z - targetZ);
+  const timeToBounce = Math.max(0.30, distToBounce / baseSpeed);
+  const gravity = 13.2;
+  const vy = (0.095 - releaseHeight + 0.5 * gravity * timeToBounce * timeToBounce) / timeToBounce;
+  const vx = (targetX - state.ballPos.x) / timeToBounce;
+
+  // A slight hand-release impulse makes the delivery start at the sampled hand position.
+  state.ballVel = { x: vx, y: vy, z: -baseSpeed };
+  state.ballSwingX = state.bowlType === 'SWING' ? (targetX >= state.ballPos.x ? -1.55 : 1.55) : 0;
+  state.ballSpinX = state.bowlType === 'SPIN' ? (targetX >= state.ballPos.x ? -3.0 : 3.0) : 0;
+
+  if (!isPlayerBatting()) {
+    const inn = getCurrentInnings();
+    const batterSkill = inn.batters[inn.strikerIdx].bat / 100;
+    const cpuQuality = Math.min(0.98, Math.max(0.2, (0.55 + Math.random() * 0.45) * batterSkill + (1 - state.bowlAccuracy) * 0.25));
+    state.cpuPlannedSwing = {
+      willSwing: Math.random() < 0.92,
+      quality: cpuQuality,
+      dir: ['LEG', 'STRAIGHT', 'OFF'][Math.floor(Math.random() * 3)],
+      loft: Math.random() < (state.inningsIndex === 1 ? 0.45 : 0.32)
+    };
+  }
+}
+
+function triggerBatSwing() {
+  if (state.paused || state.batSwung || !isPlayerBatting()) return;
+  if (state.phase !== 'BALL_IN_FLIGHT') {
+    document.getElementById('bat-status-hint').textContent = 'Wait for bowler to release!';
+    return;
+  }
+
+  state.batSwung = true;
+  document.getElementById('bat-swing-btn').disabled = true;
+  triggerBatterSwingAnim();
+
+  const idealZ = -9.15;
+  const zDiff = Math.abs(state.ballPos.z - idealZ);
+  const lineDiff = Math.abs(state.ballPos.x - (state.batterStanceX || 0));
+  const height = state.ballPos.y;
+  const meterSweet = 1 - Math.min(1, Math.abs(state.batMeterVal - 0.5) * 2.0);
+  const heightFactor = height < 0.28 ? 0.35 : (height > 2.35 ? 0.45 : 1.0);
+  const lineFactor = Math.max(0.25, 1 - lineDiff / 1.8);
+
+  if (zDiff < 2.65 && height < 3.0 && height > 0.12) {
+    const spatialQuality = Math.max(0, 1 - zDiff / 2.65);
+    state.batTimingQuality = Math.max(0, Math.min(1,
+      (spatialQuality * 0.48 + meterSweet * 0.34 + lineFactor * 0.18) * heightFactor
+    ));
+    resolveBatContact(state.batTimingQuality, state.shotDir, state.shotLoft);
+  } else {
+    document.getElementById('bat-status-hint').textContent = zDiff >= 2.65 ? 'Too early or too late!' : 'Ball out of reach!';
+  }
+}
+
+function resolveBatContact(quality, dir, loft) {
+  const inn = getCurrentInnings();
+  const batter = inn.batters[inn.strikerIdx];
+  const bowler = inn.bowlers[inn.currentBowlerIdx];
+
+  // Very late/poor contact can produce a thin edge rather than a magical clean hit.
+  if (quality < 0.22) {
+    if (Math.random() < 0.28) {
+      sfx.playBatHit(0.28);
+      recordDeliveryOutcome(0, true, 'Caught Behind (Edged)', false);
+      return;
+    }
+    state.phase = 'BALL_HIT';
+    state.cameraShake = 0.12;
+    sfx.playBatHit(0.24);
+    state.ballVel = {
+      x: (Math.random() < 0.5 ? -1 : 1) * (4.0 + Math.random() * 3.0),
+      y: 2.0 + Math.random() * 1.8,
+      z: 7.0 + Math.random() * 3.0
+    };
+    state.activeFielderIdx = 0;
+    return;
+  }
+
+  state.phase = 'BALL_HIT';
+  state.cameraShake = 0.22 + quality * 0.34;
+  sfx.playBatHit(Math.max(0.35, quality));
+
+  let angleRad = 0;
+  if (dir === 'LEG') angleRad = 0.72 + (Math.random() - 0.5) * 0.28;
+  if (dir === 'OFF') angleRad = -0.72 + (Math.random() - 0.5) * 0.28;
+  if (dir === 'STRAIGHT') angleRad = (Math.random() - 0.5) * 0.24;
+
+  const skillBonus = (batter.bat - bowler.bowl) * 0.0025;
+  const contactQuality = Math.max(0.18, Math.min(1, quality + skillBonus));
+  const cleanContact = contactQuality >= 0.78;
+  const speed = (loft ? 25.5 : 19.0) * (0.42 + contactQuality * 0.72);
+  const launchAngle = loft
+    ? (0.30 + contactQuality * 0.30)
+    : (0.035 + contactQuality * 0.10);
+
+  state.ballVel = {
+    x: Math.sin(angleRad) * speed,
+    y: Math.sin(launchAngle) * speed,
+    z: Math.cos(angleRad) * speed
+  };
+
+  // Keep the ball visibly attached to the contact point; no teleport to a preset origin.
+  state.ballPos.y = Math.max(0.145, state.ballPos.y);
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  state.fielderPositions.forEach((fp, idx) => {
+    const projectedX = state.ballPos.x + Math.sin(angleRad) * 28;
+    const projectedZ = state.ballPos.z + Math.cos(angleRad) * 28;
+    const d = Math.hypot(fp.x - projectedX, fp.z - projectedZ);
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = idx;
+    }
+  });
+  state.activeFielderIdx = bestIdx;
+
+  const hint = document.getElementById('bat-status-hint');
+  if (hint) hint.textContent = cleanContact ? 'Perfect timing!' : (contactQuality > 0.48 ? 'Good connection!' : 'Thick / mistimed contact');
+}
+
+function recordDeliveryOutcome(runs, isWicket, desc, isBoundary = false) {
+  if (state.phase === 'BALL_DEAD') return;
+  state.phase = 'BALL_DEAD';
+  state.activeFielderIdx = -1;
+  state.cameraEvent = isWicket ? 'WICKET' : (runs === 6 ? 'SIX' : (runs === 4 ? 'FOUR' : ''));
+  state.cameraEventUntil = performance.now() + (state.cameraEvent ? 1450 : 0);
+
+  const inn = getCurrentInnings();
+  const batter = inn.batters[inn.strikerIdx];
+  const bowler = inn.bowlers[inn.currentBowlerIdx];
+
+  inn.legalBalls += 1;
+  batter.balls += 1;
+  bowler.oversBalls += 1;
+
+  if (isWicket) {
+    inn.wickets += 1;
+    bowler.wickets += 1;
+    batter.status = 'out';
+    batter.dismissal = desc;
+    inn.overHistory.push('W');
+    sfx.playWicket();
+    sfx.playCrowdCheer(0.85);
+    showEventBanner('OUT!', `${batter.name} — ${desc}`, '#ff5252');
+
+    if (inn.wickets < 10 && inn.nextBatterIdx < 11) {
+      inn.strikerIdx = inn.nextBatterIdx;
+      inn.batters[inn.strikerIdx].status = 'batting';
+      inn.nextBatterIdx += 1;
+    }
+  } else {
+    inn.runs += runs;
+    batter.runs += runs;
+    bowler.runsConceded += runs;
+
+    if (runs === 4) {
+      batter.fours += 1;
+      inn.overHistory.push('4');
+      sfx.playCrowdCheer(0.7);
+      showEventBanner('FOUR!', `${batter.name} pierces the infield!`, '#29b6f6');
+    } else if (runs === 6) {
+      batter.sixes += 1;
+      inn.overHistory.push('6');
+      sfx.playCrowdCheer(1.0);
+      showEventBanner('SIX!', `Huge maximum by ${batter.name}!`, '#00e676');
+    } else {
+      inn.overHistory.push(String(runs));
+      if (runs > 0) {
+        showEventBanner(`${runs} RUN${runs > 1 ? 'S' : ''}`, desc, '#f4f7fb');
+      } else {
+        showEventBanner('DOT BALL', desc, '#93a4c3');
+      }
+    }
+
+    if (runs % 2 === 1) {
+      [inn.strikerIdx, inn.nonStrikerIdx] = [inn.nonStrikerIdx, inn.strikerIdx];
+    }
+  }
+
+  // End of over check (every 6 legal balls)
+  if (inn.legalBalls % 6 === 0 && inn.wickets < 10) {
+    [inn.strikerIdx, inn.nonStrikerIdx] = [inn.nonStrikerIdx, inn.strikerIdx];
+    inn.overHistory = [];
+    inn.lastBowlerIdx = inn.currentBowlerIdx;
+    const bowlingOrder = [7, 8, 9, 10, 6];
+    let nextBowler = bowlingOrder[Math.floor(inn.legalBalls / 6) % bowlingOrder.length];
+    if (nextBowler === inn.lastBowlerIdx) {
+      nextBowler = bowlingOrder[(Math.floor(inn.legalBalls / 6) + 1) % bowlingOrder.length];
+    }
+    inn.currentBowlerIdx = nextBowler;
+  }
+
+  updateHUD();
+
+  state.pendingNextDelivery = true;
+  setTimeout(() => {
+    if (!state.paused && state.pendingNextDelivery) {
+      prepareNextDelivery();
+    }
+  }, 1850);
+}
+
+function handleInningsEnd() {
+  const inn0 = state.innings[0];
+
+  if (state.inningsIndex === 0) {
+    state.targetScore = inn0.runs + 1;
+    openScorecardModal(true, 'INNINGS BREAK',
+      `${TEAMS[inn0.battingCode].name} posted ${inn0.runs}/${inn0.wickets} (${formatOvers(inn0.legalBalls)} ov). Target for ${TEAMS[inn0.bowlingCode].name}: ${state.targetScore} runs.`,
+      'Start 2nd Innings →',
+      () => {
+        state.inningsIndex = 1;
+        state.innings[1] = createInningsState(inn0.bowlingCode, inn0.battingCode);
+        applyTeamAppearanceTo3D(inn0.bowlingCode, inn0.battingCode);
+        closeScorecardModal();
+        updateHUD();
+        prepareNextDelivery();
+      }
+    );
+  } else {
+    state.phase = 'MATCH_OVER';
+    const inn1 = state.innings[1];
+    let headline = 'MATCH TIED!';
+    let sub = `Both teams finished level on ${inn0.runs} runs!`;
+
+    if (inn1.runs >= state.targetScore) {
+      const wicketsLeft = 10 - inn1.wickets;
+      headline = `${TEAMS[inn1.battingCode].name.toUpperCase()} WIN!`;
+      sub = `${TEAMS[inn1.battingCode].name} chased ${state.targetScore} with ${wicketsLeft} wicket${wicketsLeft === 1 ? '' : 's'} remaining!`;
+      sfx.playCrowdCheer(1.0);
+    } else if (inn0.runs > inn1.runs) {
+      const margin = inn0.runs - inn1.runs;
+      headline = `${TEAMS[inn0.battingCode].name.toUpperCase()} WIN!`;
+      sub = `${TEAMS[inn0.battingCode].name} defended ${inn0.runs} and won by ${margin} run${margin === 1 ? '' : 's'}!`;
+      sfx.playCrowdCheer(1.0);
+    }
+
+    openScorecardModal(true, headline, sub, 'Play New Match', () => restartFullGame());
+  }
+}
+
+// -----------------------------
+// 6. HUD & SCORECARD RENDERING
+// -----------------------------
+function updateHUD() {
+  const inn = getCurrentInnings();
+  if (!inn) return;
+
+  const batTeam = TEAMS[inn.battingCode];
+  const bowlTeam = TEAMS[inn.bowlingCode];
+
+  document.getElementById('hud-bat-dot').style.background = batTeam.primary;
+  document.getElementById('hud-bat-name').textContent = batTeam.code;
+  document.getElementById('hud-bowl-name').textContent = bowlTeam.code;
+  document.getElementById('hud-score').textContent = `${inn.runs}/${inn.wickets}`;
+
+  const crr = inn.legalBalls > 0 ? ((inn.runs / inn.legalBalls) * 6).toFixed(2) : '0.00';
+  document.getElementById('hud-overs').textContent =
+    `(${formatOvers(inn.legalBalls)} / ${state.totalOvers}.0 ov) • CRR: ${crr}`;
+
+  const targetEl = document.getElementById('hud-target');
+  if (state.inningsIndex === 1 && state.targetScore !== null) {
+    const need = Math.max(0, state.targetScore - inn.runs);
+    const ballsLeft = state.totalOvers * 6 - inn.legalBalls;
+    targetEl.classList.remove('hidden');
+    targetEl.textContent = `Target: ${state.targetScore} • Need ${need} off ${ballsLeft}b`;
+  } else {
+    targetEl.classList.add('hidden');
+  }
+
+  const striker = inn.batters[inn.strikerIdx];
+  const nonStriker = inn.batters[inn.nonStrikerIdx];
+  document.getElementById('hud-striker-name').textContent = striker ? striker.name : '-';
+  document.getElementById('hud-striker-score').textContent = striker ? `${striker.runs} (${striker.balls})` : '0 (0)';
+  document.getElementById('hud-nonstriker-name').textContent = nonStriker ? nonStriker.name : '-';
+  document.getElementById('hud-nonstriker-score').textContent = nonStriker ? `${nonStriker.runs} (${nonStriker.balls})` : '0 (0)';
+
+  const bowler = inn.bowlers[inn.currentBowlerIdx];
+  document.getElementById('hud-bowler-name').textContent = bowler ? bowler.name : '-';
+  document.getElementById('hud-bowler-fig').textContent =
+    bowler ? `${bowler.wickets}-${bowler.runsConceded} (${formatOvers(bowler.oversBalls)})` : '0-0 (0.0)';
+
+  const overContainer = document.getElementById('hud-over-balls');
+  overContainer.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const chip = document.createElement('div');
+    const val = inn.overHistory[i];
+    chip.className = 'ball-chip';
+    if (val !== undefined) {
+      chip.textContent = val;
+      if (val === '4') chip.classList.add('four');
+      if (val === '6') chip.classList.add('six');
+      if (val === 'W') chip.classList.add('wicket');
+    } else {
+      chip.textContent = '•';
+      chip.style.opacity = '0.35';
+    }
+    overContainer.appendChild(chip);
+  }
+}
+
+let bannerTimeout = null;
+function showEventBanner(big, sub, color) {
+  const banner = document.getElementById('event-banner');
+  const bigEl = document.getElementById('banner-big');
+  const subEl = document.getElementById('banner-sub');
+  bigEl.textContent = big;
+  bigEl.style.color = color;
+  bigEl.style.borderColor = color;
+  subEl.textContent = sub;
+
+  banner.classList.add('show');
+  clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => {
+    banner.classList.remove('show');
+  }, 1550);
+}
+
+function openScorecardModal(isMandatory, title = 'Live Match Scorecard', subtitle = '', primaryLabel = 'Resume Play', primaryAction = null) {
+  state.paused = true;
+  document.getElementById('pause-screen').classList.add('hidden');
+  document.getElementById('modal-screen').classList.remove('hidden');
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-subtitle').textContent = subtitle || `${TEAMS[state.playerTeamCode].name} vs ${TEAMS[state.cpuTeamCode].name}`;
+
+  const primaryBtn = document.getElementById('modal-primary-btn');
+  const closeBtn = document.getElementById('modal-close-btn');
+
+  primaryBtn.textContent = primaryLabel;
+  primaryBtn.onclick = primaryAction || (() => closeScorecardModal());
+  closeBtn.classList.toggle('hidden', isMandatory);
+
+  const container = document.getElementById('scorecard-content');
+  container.innerHTML = '';
+
+  state.innings.forEach((inn, idx) => {
+    if (!inn) return;
+    const header = document.createElement('h3');
+    header.style.cssText = 'font-size:14px; margin: 10px 0 4px; color: var(--accent);';
+    header.textContent = `Innings ${idx + 1}: ${TEAMS[inn.battingCode].name} — ${inn.runs}/${inn.wickets} (${formatOvers(inn.legalBalls)} ov)`;
+    container.appendChild(header);
+
+    const table = document.createElement('table');
+    table.className = 'score-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Batter</th>
+          <th>Status</th>
+          <th class="num">R</th>
+          <th class="num">B</th>
+          <th class="num">4s</th>
+          <th class="num">6s</th>
+          <th class="num">SR</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${inn.batters.map(b => {
+          const sr = b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0';
+          const st = b.status === 'batting' ? '<span style="color:var(--accent)">not out*</span>' :
+                     b.status === 'out' ? `<span style="color:#ff8a80">${b.dismissal}</span>` :
+                     '<span style="color:var(--text-muted)">yet to bat</span>';
+          return `<tr>
+            <td><strong>${b.name}</strong></td>
+            <td>${st}</td>
+            <td class="num"><strong>${b.runs}</strong></td>
+            <td class="num">${b.balls}</td>
+            <td class="num">${b.fours}</td>
+            <td class="num">${b.sixes}</td>
+            <td class="num">${sr}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    `;
+    container.appendChild(table);
+  });
+}
+
+function resumeFromPauseOrModal() {
+  state.paused = false;
+  if (state.pendingNextDelivery) {
+    prepareNextDelivery();
+  } else if (state.phase === 'AIMING' && isPlayerBatting()) {
+    clearTimeout(cpuBowlTimer);
+    cpuBowlTimer = setTimeout(() => {
+      if (state.phase === 'AIMING' && !state.paused) {
+        startBowlingRunup();
+      }
+    }, 600);
+  }
+}
+
+function closeScorecardModal() {
+  document.getElementById('modal-screen').classList.add('hidden');
+  resumeFromPauseOrModal();
+}
+
+function togglePause(forcePause) {
+  if (state.phase === 'MATCH_OVER') return;
+  const nextPaused = typeof forcePause === 'boolean' ? forcePause : !state.paused;
+  document.getElementById('pause-screen').classList.toggle('hidden', !nextPaused);
+  if (nextPaused) {
+    state.paused = true;
+  } else {
+    resumeFromPauseOrModal();
+  }
+}
+
+function toggleSound() {
+  sfx.enabled = !sfx.enabled;
+  document.getElementById('sound-btn').textContent = sfx.enabled ? '🔊' : '🔇';
+}
+
+function restartFullGame() {
+  location.reload();
+}
+
+// -----------------------------
+// 7. THREE.JS 3D STADIUM & REALISTIC WCC 2 HUMAN CHARACTER ENGINE
+// -----------------------------
+let use3D = false;
+let scene, camera, renderer;
+let ballMesh, targetRingMesh, strikerRig, nonStrikerRig, bowlerRig, keeperRig;
+let fielderRigs = [];
+let bailsMeshes = [];
+
+// Procedural Texture Caches so textures are crisp and fast
+const faceTextureCache = new Map();
+const jerseyTextureCache = new Map();
+
+const PLAYER_ARCHETYPES = [
+  { skin: '#c68863', shadow: '#9c6241', highlight: '#dfb091', beard: 'full', hair: '#181412', eye: '#2b1b12' },
+  { skin: '#b97a56', shadow: '#8c5334', highlight: '#d49d7d', beard: 'stubble', hair: '#151210', eye: '#24160e' },
+  { skin: '#e0ac8b', shadow: '#b88261', highlight: '#f2ccb3', beard: 'clean', hair: '#3b281c', eye: '#2e4a3e' },
+  { skin: '#a86b47', shadow: '#7d492b', highlight: '#c48966', beard: 'mustache', hair: '#12100e', eye: '#1f130c' },
+  { skin: '#d89e79', shadow: '#ad7451', highlight: '#ecc0a3', beard: 'stubble', hair: '#2a1d15', eye: '#2b1d14' },
+  { skin: '#8d5536', shadow: '#633820', highlight: '#ab704f', beard: 'full', hair: '#100e0d', eye: '#1b110b' },
+  { skin: '#e6b898', shadow: '#be8c6b', highlight: '#f7d6be', beard: 'clean', hair: '#4a3222', eye: '#2d4b63' },
+  { skin: '#b37450', shadow: '#874f30', highlight: '#ce9573', beard: 'full', hair: '#161311', eye: '#23150d' },
+  { skin: '#cf936e', shadow: '#a36a48', highlight: '#e6b697', beard: 'stubble', hair: '#1c1613', eye: '#2a1b12' },
+  { skin: '#9a5f3d', shadow: '#704024', highlight: '#b87d5b', beard: 'clean', hair: '#141110', eye: '#1d120b' },
+  { skin: '#dca582', shadow: '#b37b58', highlight: '#efc5a8', beard: 'mustache', hair: '#241913', eye: '#2c1e14' }
+];
+
+/**
+ * Generates a high-resolution (512x512) equirectangular human face texture
+ * mapped to a SphereGeometry where U=0.5 is the front face (+X in Three.js SphereGeometry,
+ * rotated so +Z is forward).
+ */
+function createFaceTexture(archetypeIdx) {
+  const key = archetypeIdx % PLAYER_ARCHETYPES.length;
+  if (faceTextureCache.has(key)) return faceTextureCache.get(key);
+
+  const p = PLAYER_ARCHETYPES[key];
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  // 1. Base skin tone & realistic facial lighting gradient
+  ctx.fillStyle = p.skin;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Cheekbone & forehead warm illumination centered at front (x=256, y=245)
+  const faceGlow = ctx.createRadialGradient(256, 235, 18, 256, 250, 145);
+  faceGlow.addColorStop(0, p.highlight);
+  faceGlow.addColorStop(0.55, p.skin);
+  faceGlow.addColorStop(1, p.shadow);
+  ctx.fillStyle = faceGlow;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // 2. Back & sides hairline (U near 0 and 1 is back of head)
+  ctx.fillStyle = p.hair;
+  ctx.fillRect(0, 0, 130, 395);
+  ctx.fillRect(382, 0, 130, 395);
+  // Top hairline & sideburns
+  ctx.beginPath();
+  ctx.moveTo(0, 145);
+  ctx.quadraticCurveTo(155, 128, 178, 172);
+  ctx.quadraticCurveTo(256, 152, 334, 172);
+  ctx.quadraticCurveTo(357, 128, 512, 145);
+  ctx.lineTo(512, 0);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sideburns tapering down in front of ears
+  ctx.fillRect(160, 165, 14, 92);
+  ctx.fillRect(338, 165, 14, 92);
+
+  // 3. Eye sockets soft contour shadow
+  [218, 294].forEach(ex => {
+    const socket = ctx.createRadialGradient(ex, 234, 4, ex, 236, 28);
+    socket.addColorStop(0, p.shadow);
+    socket.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = socket;
+    ctx.beginPath();
+    ctx.arc(ex, 236, 28, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 4. Expressive Eyebrows
+  ctx.strokeStyle = p.hair;
+  ctx.lineWidth = 6.5;
+  ctx.lineCap = 'round';
+  // Left eyebrow
+  ctx.beginPath();
+  ctx.moveTo(194, 214);
+  ctx.quadraticCurveTo(218, 206, 240, 215);
+  ctx.stroke();
+  // Right eyebrow
+  ctx.beginPath();
+  ctx.moveTo(272, 215);
+  ctx.quadraticCurveTo(294, 206, 318, 214);
+  ctx.stroke();
+
+  // 5. Realistic Eyes (Sclera, Upper Eyelash Line, Iris, Pupil, Specular Catchlight)
+  [218, 294].forEach(ex => {
+    // Almond sclera
+    ctx.fillStyle = '#f7f5f2';
+    ctx.beginPath();
+    ctx.moveTo(ex - 17, 234);
+    ctx.quadraticCurveTo(ex, 222, ex + 17, 234);
+    ctx.quadraticCurveTo(ex, 244, ex - 17, 234);
+    ctx.fill();
+
+    // Iris
+    ctx.fillStyle = p.eye;
+    ctx.beginPath();
+    ctx.arc(ex, 233, 7.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pupil
+    ctx.fillStyle = '#090909';
+    ctx.beginPath();
+    ctx.arc(ex, 233, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specular eye highlight (brings character to life)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ex - 2.3, 230.8, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Upper eyelid crease & lashes
+    ctx.strokeStyle = '#1b120d';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(ex - 18, 234);
+    ctx.quadraticCurveTo(ex, 221, ex + 18, 234);
+    ctx.stroke();
+  });
+
+  // 6. Nose Bridge Highlight, Tip Shadow & Nostrils
+  const noseGrad = ctx.createLinearGradient(246, 232, 266, 232);
+  noseGrad.addColorStop(0, p.shadow);
+  noseGrad.addColorStop(0.5, p.highlight);
+  noseGrad.addColorStop(1, p.shadow);
+  ctx.fillStyle = noseGrad;
+  ctx.beginPath();
+  ctx.moveTo(251, 232);
+  ctx.lineTo(261, 232);
+  ctx.lineTo(265, 276);
+  ctx.lineTo(247, 276);
+  ctx.closePath();
+  ctx.fill();
+
+  // Nose under-shadow & nostrils
+  ctx.fillStyle = p.shadow;
+  ctx.beginPath();
+  ctx.ellipse(256, 281, 14, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2d1810';
+  ctx.beginPath();
+  ctx.ellipse(248, 280, 3.6, 2.2, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(264, 280, 3.6, 2.2, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 7. Cheek contour / subtle athletic blush
+  ctx.fillStyle = 'rgba(185, 85, 75, 0.14)';
+  ctx.beginPath();
+  ctx.ellipse(204, 268, 18, 11, 0, 0, Math.PI * 2);
+  ctx.ellipse(308, 268, 18, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 8. Facial Hair (Full Beard, Stubble, Mustache, or Clean-Shaven)
+  if (p.beard === 'full') {
+    ctx.fillStyle = 'rgba(22, 17, 14, 0.86)';
+    ctx.beginPath();
+    ctx.moveTo(166, 255);
+    ctx.quadraticCurveTo(175, 345, 256, 356);
+    ctx.quadraticCurveTo(337, 345, 346, 255);
+    ctx.lineTo(334, 255);
+    ctx.quadraticCurveTo(324, 314, 256, 318);
+    ctx.quadraticCurveTo(188, 314, 178, 255);
+    ctx.closePath();
+    ctx.fill();
+
+    // Mustache connecting to beard
+    ctx.beginPath();
+    ctx.moveTo(226, 297);
+    ctx.quadraticCurveTo(256, 287, 286, 297);
+    ctx.quadraticCurveTo(286, 306, 256, 302);
+    ctx.quadraticCurveTo(226, 306, 226, 297);
+    ctx.fill();
+
+    // Soul patch under lower lip
+    ctx.beginPath();
+    ctx.ellipse(256, 323, 8, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (p.beard === 'stubble') {
+    ctx.fillStyle = 'rgba(28, 22, 18, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(172, 262);
+    ctx.quadraticCurveTo(182, 342, 256, 350);
+    ctx.quadraticCurveTo(330, 342, 340, 262);
+    ctx.lineTo(326, 264);
+    ctx.quadraticCurveTo(316, 312, 256, 315);
+    ctx.quadraticCurveTo(196, 312, 186, 264);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.ellipse(256, 296, 25, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (p.beard === 'mustache') {
+    ctx.fillStyle = 'rgba(22, 17, 14, 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(228, 297);
+    ctx.quadraticCurveTo(256, 286, 284, 297);
+    ctx.quadraticCurveTo(282, 305, 256, 301);
+    ctx.quadraticCurveTo(230, 305, 228, 297);
+    ctx.fill();
+  }
+
+  // 9. Natural Human Lips & Confident Expression
+  // Upper lip
+  ctx.fillStyle = '#8c4943';
+  ctx.beginPath();
+  ctx.moveTo(235, 308);
+  ctx.quadraticCurveTo(248, 302, 256, 305);
+  ctx.quadraticCurveTo(264, 302, 277, 308);
+  ctx.quadraticCurveTo(256, 311, 235, 308);
+  ctx.fill();
+
+  // Lower lip
+  ctx.fillStyle = '#a85d56';
+  ctx.beginPath();
+  ctx.moveTo(237, 309);
+  ctx.quadraticCurveTo(256, 321, 275, 309);
+  ctx.quadraticCurveTo(256, 312, 237, 309);
+  ctx.fill();
+
+  // Lip parting line
+  ctx.strokeStyle = '#4a211e';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(235, 308.5);
+  ctx.quadraticCurveTo(256, 311, 277, 308.5);
+  ctx.stroke();
+
+  // 10. Neck shading below jawline
+  ctx.fillStyle = p.shadow;
+  ctx.fillRect(0, 378, 512, 134);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  faceTextureCache.set(key, tex);
+  return tex;
+}
+
+/**
+ * Generates a realistic cricket jersey texture with team colors, chest stripes,
+ * collar trim, team crest, and back squad number.
+ */
+function createJerseyTexture(primaryHex, secondaryHex, teamCode, jerseyNum) {
+  const key = `${primaryHex}_${secondaryHex}_${teamCode}_${jerseyNum}`;
+  if (jerseyTextureCache.has(key)) return jerseyTextureCache.get(key);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  // Base jersey fabric
+  ctx.fillStyle = primaryHex;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Subtle fabric weave shading
+  const shade = ctx.createLinearGradient(0, 0, 0, 512);
+  shade.addColorStop(0, 'rgba(255,255,255,0.12)');
+  shade.addColorStop(0.5, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Side athletic panels & diagonal chest accent stripe
+  ctx.fillStyle = secondaryHex;
+  ctx.fillRect(110, 0, 36, 512);
+  ctx.fillRect(366, 0, 36, 512);
+
+  // Front chest banner (around U = 0.5 -> x = 256)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+  ctx.fillRect(175, 165, 162, 54);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 32px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(teamCode, 256, 193);
+
+  // Team crest badge on left chest
+  ctx.fillStyle = secondaryHex;
+  ctx.beginPath();
+  ctx.arc(306, 122, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Back of jersey (U = 0 and U = 1 -> x = 0 and x = 512)
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 105px Arial, sans-serif';
+  ctx.fillText(String(jerseyNum), 0, 230);
+  ctx.fillText(String(jerseyNum), 512, 230);
+
+  // Collar trim at top
+  ctx.fillStyle = secondaryHex;
+  ctx.fillRect(0, 0, 512, 26);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  jerseyTextureCache.set(key, tex);
+  return tex;
+}
+
+/**
+ * Builds an articulated, WCC 2-style realistic 3D human cricketer rig with:
+ * - Detailed 3D head (textured human face, 3D nose, ears, chin, hair/cap or helmet with grille)
+ * - Neck, sculpted shoulders, upper arms, forearms, and hands/batting gloves
+ * - Athletic tapered torso with jersey texture & collar
+ * - Hips/pelvis, articulated thighs, knees, calves/batting pads, and cricket shoes
+ */
+function createHumanPlayerRig(options = {}) {
+  const {
+    primaryHex = '#00a859',
+    secondaryHex = '#d4af37',
+    teamCode = 'PAK',
+    jerseyNum = 10,
+    archetypeIdx = 0,
+    isBatter = false,
+    isKeeper = false,
+    hasHelmet = false
+  } = options;
+
+  const arch = PLAYER_ARCHETYPES[archetypeIdx % PLAYER_ARCHETYPES.length];
+  const root = new THREE.Group();
+
+  // Materials
+  const skinMat = new THREE.MeshStandardMaterial({ color: arch.skin, roughness: 0.62, metalness: 0.04 });
+  const faceMat = new THREE.MeshStandardMaterial({
+    map: createFaceTexture(archetypeIdx),
+    roughness: 0.58,
+    metalness: 0.03
+  });
+  const jerseyMat = new THREE.MeshStandardMaterial({
+    map: createJerseyTexture(primaryHex, secondaryHex, teamCode, jerseyNum),
+    roughness: 0.65
+  });
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: primaryHex, roughness: 0.65 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: secondaryHex, roughness: 0.5 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: primaryHex, roughness: 0.72 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: arch.hair, roughness: 0.85 });
+  const padMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f9, roughness: 0.42 });
+  const gloveMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 });
+  const shoeMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.4 });
+  const soleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+
+  // Pelvis / Hips root (y = 0.94m)
+  const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.165, 0.2, 16), pantsMat);
+  pelvis.scale.set(1.12, 1, 0.82);
+  pelvis.position.y = 0.94;
+  pelvis.castShadow = true;
+  root.add(pelvis);
+
+  // Athletic Tapered Torso (chest broader than waist)
+  const torsoGroup = new THREE.Group();
+  torsoGroup.position.y = 1.02;
+  root.add(torsoGroup);
+
+  const chestMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.172, 0.52, 32), jerseyMat);
+  chestMesh.scale.set(1.16, 1, 0.76);
+  chestMesh.position.y = 0.26;
+  // Rotate cylinder so UV U=0.5 faces +Z (front of player)
+  chestMesh.rotation.y = -Math.PI / 2;
+  chestMesh.castShadow = true;
+  torsoGroup.add(chestMesh);
+
+  // Subtle anatomical volume overlays: pectorals, rib cage and tapered abdomen.
+  // These blend into the jersey silhouette instead of reading as separate armour plates.
+  const chestVolume = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), jerseyMat);
+  chestVolume.scale.set(0.225, 0.205, 0.115);
+  chestVolume.position.set(0, 0.325, 0.012);
+  chestVolume.castShadow = true;
+  torsoGroup.add(chestVolume);
+
+  const abdomenVolume = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 16), jerseyMat);
+  abdomenVolume.scale.set(0.157, 0.205, 0.112);
+  abdomenVolume.position.set(0, 0.105, 0.004);
+  abdomenVolume.castShadow = true;
+  torsoGroup.add(abdomenVolume);
+
+  // Trapezius / upper-back mass softens the neck-to-shoulder transition.
+  const upperBack = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), jerseyMat);
+  upperBack.scale.set(0.235, 0.105, 0.105);
+  upperBack.position.set(0, 0.455, -0.035);
+  torsoGroup.add(upperBack);
+
+  // Jersey Collar
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.022, 10, 20), trimMat);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 0.52, 0.01);
+  torsoGroup.add(collar);
+
+  // Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.078, 0.12, 14), skinMat);
+  neck.position.set(0, 0.57, 0.01);
+  torsoGroup.add(neck);
+
+  // Head Group (with realistic human face + sculpted 3D features)
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.72, 0.02);
+  torsoGroup.add(headGroup);
+
+  // Cranium slightly elongated vertically like a real human head
+  const headGeo = new THREE.SphereGeometry(0.126, 32, 26);
+  const headMesh = new THREE.Mesh(headGeo, faceMat);
+  headMesh.scale.set(0.92, 1.12, 0.98);
+  // Rotate sphere so U=0.5 (front face on canvas) points directly along +Z
+  headMesh.rotation.y = -Math.PI / 2;
+  headMesh.castShadow = true;
+  headGroup.add(headMesh);
+
+  // 3D Sculpted Nose Bridge & Tip so profile & 3/4 angles look genuinely human
+  const noseBridge = new THREE.Mesh(new THREE.ConeGeometry(0.021, 0.055, 8), skinMat);
+  noseBridge.rotation.x = Math.PI * 0.42;
+  noseBridge.position.set(0, -0.005, 0.132);
+  headGroup.add(noseBridge);
+
+  // 3D Ears (Left & Right)
+  [-0.122, 0.122].forEach(earX => {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 10), skinMat);
+    ear.scale.set(0.45, 1.15, 0.75);
+    ear.position.set(earX, -0.008, -0.005);
+    headGroup.add(ear);
+  });
+
+  // Raised 3D eyes, eyelids, brows and mouth: visible from close/broadcast cameras.
+  // The original high-resolution face texture remains underneath these sculpted details.
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8f5ef, roughness: 0.28 });
+  const irisMat = new THREE.MeshStandardMaterial({ color: arch.eye, roughness: 0.3 });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.18 });
+  const eyeShineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const browMat = new THREE.MeshStandardMaterial({ color: arch.hair, roughness: 0.9 });
+  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x713e36, roughness: 0.8 });
+  [-1, 1].forEach(side => {
+    const eye = new THREE.Group();
+    eye.position.set(side * 0.047, 0.025, 0.111);
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.026, 18, 14), eyeWhiteMat);
+    sclera.scale.set(1.12, 0.62, 0.48);
+    eye.add(sclera);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.0125, 14, 12), irisMat);
+    iris.position.set(0, -0.001, 0.0105);
+    eye.add(iris);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 12, 10), pupilMat);
+    pupil.position.set(0, -0.001, 0.020);
+    eye.add(pupil);
+    const shine = new THREE.Mesh(new THREE.SphereGeometry(0.0032, 8, 8), eyeShineMat);
+    shine.position.set(-0.004, 0.005, 0.025);
+    eye.add(shine);
+    headGroup.add(eye);
+
+    const brow = new THREE.Mesh(new THREE.SphereGeometry(0.029, 14, 10), browMat);
+    brow.scale.set(1.1, 0.22, 0.25);
+    brow.position.set(side * 0.047, 0.067, 0.112);
+    headGroup.add(brow);
+  });
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.025, 16, 10), mouthMat);
+  mouth.scale.set(0.72, 0.12, 0.18);
+  mouth.position.set(0, -0.071, 0.119);
+  headGroup.add(mouth);
+
+  // Headgear: Cricket Helmet with Grille (for batters & keeper) OR Styled Hair + Team Cap
+  const helmetGroup = new THREE.Group();
+  const domeMat = new THREE.MeshStandardMaterial({ color: primaryHex, roughness: 0.32, metalness: 0.15 });
+  const helmetDome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.144, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.58),
+    domeMat
+  );
+  helmetDome.scale.set(0.96, 1.08, 1.04);
+  helmetDome.position.set(0, 0.015, -0.005);
+  helmetGroup.add(helmetDome);
+
+  // Helmet Peak / Visor
+  const peak = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.135, 0.145, 0.014, 18, 1, false, -Math.PI * 0.35, Math.PI * 0.7),
+    trimMat
+  );
+  peak.position.set(0, 0.048, 0.042);
+  peak.rotation.x = 0.22;
+  helmetGroup.add(peak);
+
+  // Metallic Face Protection Grille (curved bars in front of chin/cheek)
+  const grilleMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, metalness: 0.85, roughness: 0.25 });
+  [-0.042, -0.072].forEach(gy => {
+    const bar = new THREE.Mesh(
+      new THREE.TorusGeometry(0.132, 0.0045, 6, 20, Math.PI * 0.78),
+      grilleMat
+    );
+    bar.rotation.x = Math.PI / 2;
+    bar.rotation.z = Math.PI * 0.11;
+    bar.position.set(0, gy, 0.025);
+    helmetGroup.add(bar);
+  });
+  // Vertical grille struts
+  [-0.055, 0.055].forEach(gx => {
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.085, 6), grilleMat);
+    strut.position.set(gx, -0.032, 0.145);
+    strut.rotation.x = -0.18;
+    helmetGroup.add(strut);
+  });
+  helmetGroup.visible = hasHelmet;
+  headGroup.add(helmetGroup);
+
+  // Hair & Team Cap (shown when helmet is off)
+  const capGroup = new THREE.Group();
+  const hairCrown = new THREE.Mesh(
+    new THREE.SphereGeometry(0.136, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    hairMat
+  );
+  hairCrown.scale.set(0.94, 1.08, 1.0);
+  hairCrown.position.set(0, 0.012, -0.006);
+  capGroup.add(hairCrown);
+
+  const capCrown = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.45),
+    domeMat
+  );
+  capCrown.scale.set(0.96, 1.02, 1.02);
+  capCrown.position.set(0, 0.028, -0.006);
+  capGroup.add(capCrown);
+
+  const capBrim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.125, 0.135, 0.012, 16, 1, false, -Math.PI * 0.32, Math.PI * 0.64),
+    trimMat
+  );
+  capBrim.position.set(0, 0.046, 0.048);
+  capBrim.rotation.x = 0.16;
+  capGroup.add(capBrim);
+
+  capGroup.visible = !hasHelmet;
+  headGroup.add(capGroup);
+
+  // Articulated Arms (Left & Right)
+  function buildArm(sideSign) {
+    const shoulderPivot = new THREE.Group();
+    shoulderPivot.position.set(sideSign * 0.268, 0.455, 0);
+
+    // Deltoid shoulder cap
+    const shoulderCap = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 14), sleeveMat);
+    shoulderPivot.add(shoulderCap);
+
+    // Short-sleeve jersey upper arm + athletic bicep/tricep
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.066, 0.058, 0.16, 12), sleeveMat);
+    sleeve.position.y = -0.08;
+    shoulderPivot.add(sleeve);
+
+    const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.047, 0.17, 20), skinMat);
+    upperArm.position.y = -0.21;
+    upperArm.castShadow = true;
+    shoulderPivot.add(upperArm);
+    // Rounded bicep/tricep volume gives the arm a natural human silhouette.
+    const bicep = new THREE.Mesh(new THREE.SphereGeometry(0.052, 18, 14), skinMat);
+    bicep.scale.set(0.92, 1.65, 0.88);
+    bicep.position.set(sideSign * 0.006, -0.205, 0.006);
+    shoulderPivot.add(bicep);
+
+    // Elbow & Forearm Pivot
+    const elbowPivot = new THREE.Group();
+    elbowPivot.position.y = -0.28;
+    shoulderPivot.add(elbowPivot);
+
+    const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), skinMat);
+    elbowPivot.add(elbowJoint);
+
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.034, 0.24, 20), skinMat);
+    forearm.position.y = -0.12;
+    forearm.castShadow = true;
+    elbowPivot.add(forearm);
+    const forearmMuscle = new THREE.Mesh(new THREE.SphereGeometry(0.041, 16, 12), skinMat);
+    forearmMuscle.scale.set(0.92, 2.25, 0.9);
+    forearmMuscle.position.set(0, -0.12, 0.004);
+    elbowPivot.add(forearmMuscle);
+
+    // Rounded palm and individually sculpted fingers instead of a rectangular hand.
+    const handMat = (isBatter || isKeeper) ? gloveMat : skinMat;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.047, 18, 14), handMat);
+    hand.scale.set(isBatter || isKeeper ? 1.05 : 0.82, 1.08, 0.72);
+    hand.position.set(0, -0.255, 0.012);
+    elbowPivot.add(hand);
+    // A scale-neutral attachment anchor follows the palm's exact transform without
+    // inheriting the hand mesh's deliberately non-uniform sculpting scale.
+    const handAnchor = new THREE.Group();
+    handAnchor.position.copy(hand.position);
+    elbowPivot.add(handAnchor);
+    if (!(isBatter || isKeeper)) {
+      for (let finger = 0; finger < 4; finger++) {
+        const digit = new THREE.Mesh(new THREE.SphereGeometry(0.009, 10, 8), skinMat);
+        digit.scale.set(0.85, 1.8, 0.85);
+        digit.position.set((finger - 1.5) * 0.015, -0.294, 0.024);
+        elbowPivot.add(digit);
+      }
+      const thumb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), skinMat);
+      thumb.scale.set(1.0, 1.5, 0.9);
+      thumb.position.set(sideSign * 0.038, -0.265, 0.025);
+      elbowPivot.add(thumb);
+    }
+
+    return { shoulderPivot, elbowPivot, hand, handAnchor, sleeve };
+  }
+
+  const leftArm = buildArm(-1);
+  const rightArm = buildArm(1);
+  torsoGroup.add(leftArm.shoulderPivot, rightArm.shoulderPivot);
+
+  // Articulated Legs (Thigh -> Knee -> Calf/Batting Pad -> Cricket Shoe)
+  function buildLeg(sideSign) {
+    const hipPivot = new THREE.Group();
+    hipPivot.position.set(sideSign * 0.115, 0.88, 0);
+
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.096, 0.076, 0.42, 24), pantsMat);
+    thigh.position.y = -0.21;
+    thigh.castShadow = true;
+    hipPivot.add(thigh);
+
+    const quadriceps = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 14), pantsMat);
+    quadriceps.scale.set(1.0, 2.15, 0.9);
+    quadriceps.position.set(0, -0.205, 0.018);
+    hipPivot.add(quadriceps);
+
+    const hamstring = new THREE.Mesh(new THREE.SphereGeometry(0.064, 16, 12), pantsMat);
+    hamstring.scale.set(0.92, 1.85, 0.82);
+    hamstring.position.set(0, -0.22, -0.035);
+    hipPivot.add(hamstring);
+
+    const kneePivot = new THREE.Group();
+    kneePivot.position.y = -0.42;
+    hipPivot.add(kneePivot);
+
+    const kneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.074, 12, 10), pantsMat);
+    kneePivot.add(kneeJoint);
+
+    const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.074, 0.056, 0.4, 24), pantsMat);
+    calf.position.y = -0.2;
+    calf.castShadow = true;
+    kneePivot.add(calf);
+
+    const calfMuscle = new THREE.Mesh(new THREE.SphereGeometry(0.056, 18, 14), pantsMat);
+    calfMuscle.scale.set(0.92, 1.85, 0.88);
+    calfMuscle.position.set(0, -0.19, -0.006);
+    kneePivot.add(calfMuscle);
+
+    // Molded Batting / Wicketkeeping Leg Pad (with 3 horizontal knee rolls)
+    const padGroup = new THREE.Group();
+    const padShell = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.092, 0.076, 0.47, 14, 1, false, -Math.PI * 0.42, Math.PI * 0.84),
+      padMat
+    );
+    padShell.position.set(0, -0.17, 0.016);
+    padGroup.add(padShell);
+
+    [0.03, -0.015, -0.06].forEach(ry => {
+      const roll = new THREE.Mesh(new THREE.BoxGeometry(0.145, 0.028, 0.045), padMat);
+      roll.position.set(0, ry, 0.088);
+      padGroup.add(roll);
+    });
+    padGroup.visible = (isBatter || isKeeper);
+    kneePivot.add(padGroup);
+
+    // Cricket Shoe + Sole
+    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 18, 12), shoeMat);
+    shoe.scale.set(0.56, 0.34, 1.12);
+    shoe.position.set(0, -0.425, 0.055);
+    kneePivot.add(shoe);
+
+    const sole = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 10), soleMat);
+    sole.scale.set(0.56, 0.10, 1.12);
+    sole.position.set(0, -0.455, 0.055);
+    kneePivot.add(sole);
+
+    const toeCap = new THREE.Mesh(new THREE.SphereGeometry(0.062, 14, 10), shoeMat);
+    toeCap.scale.set(0.72, 0.52, 0.82);
+    toeCap.position.set(0, -0.414, 0.112);
+    kneePivot.add(toeCap);
+
+    return { hipPivot, kneePivot, thigh, calf, padGroup };
+  }
+
+  const leftLeg = buildLeg(-1);
+  const rightLeg = buildLeg(1);
+  root.add(leftLeg.hipPivot, rightLeg.hipPivot);
+
+  return {
+    root,
+    pelvis,
+    torsoGroup,
+    headGroup,
+    chestMesh,
+    collar,
+    helmetGroup,
+    capGroup,
+    helmetDome,
+    capCrown,
+    peak,
+    capBrim,
+    leftArm,
+    rightArm,
+    leftLeg,
+    rightLeg,
+    skinMat,
+    faceMat,
+    jerseyMat,
+    sleeveMat,
+    trimMat,
+    pantsMat,
+    domeMat
+  };
+}
+
+/**
+ * Updates an existing player rig's face, skin tone, jersey texture, and helmet/cap state
+ * whenever teams change or a new batter/bowler comes in.
+ */
+// Shared procedural skeletal animation layer used by every player rig.
+// Smooth sinusoidal idle motion and phase-based athletic poses keep characters alive
+// without snapping the existing gameplay-specific bowling and batting actions.
+function animatePlayerIdle(rig, time, phaseOffset = 0, intensity = 1) {
+  if (!rig) return;
+  const t = time + phaseOffset;
+  const breath = Math.sin(t * 2.0) * 0.012 * intensity;
+  const sway = Math.sin(t * 1.15) * 0.018 * intensity;
+  rig.torsoGroup.position.y = 1.02 + breath;
+  rig.torsoGroup.rotation.z = sway * 0.55;
+  rig.headGroup.rotation.x = Math.sin(t * 0.8) * 0.025 * intensity;
+  rig.leftArm.shoulderPivot.rotation.z = -0.035 + Math.sin(t * 1.4) * 0.025 * intensity;
+  rig.rightArm.shoulderPivot.rotation.z = 0.035 + Math.sin(t * 1.4 + 0.6) * 0.025 * intensity;
+  rig.leftLeg.hipPivot.rotation.z = Math.sin(t * 1.1) * 0.012 * intensity;
+  rig.rightLeg.hipPivot.rotation.z = -Math.sin(t * 1.1) * 0.012 * intensity;
+}
+
+function animatePlayerRun(rig, time, intensity = 1) {
+  const cycle = time * 10.5;
+  const stride = Math.sin(cycle) * intensity;
+  const lift = Math.max(0, Math.cos(cycle)) * 0.16 * intensity;
+  rig.root.position.y = lift;
+  rig.torsoGroup.rotation.x = 0.10 + Math.abs(stride) * 0.055;
+  rig.torsoGroup.rotation.z = Math.sin(cycle * 0.5) * 0.035;
+  rig.leftLeg.hipPivot.rotation.x = stride * 0.72;
+  rig.rightLeg.hipPivot.rotation.x = -stride * 0.72;
+  rig.leftLeg.kneePivot.rotation.x = Math.max(0, -stride) * 0.88;
+  rig.rightLeg.kneePivot.rotation.x = Math.max(0, stride) * 0.88;
+  rig.leftArm.shoulderPivot.rotation.x = -stride * 0.48 - 0.12;
+  rig.rightArm.shoulderPivot.rotation.x = stride * 0.48 - 0.12;
+  rig.leftArm.elbowPivot.rotation.x = -0.62 - Math.max(0, stride) * 0.22;
+  rig.rightArm.elbowPivot.rotation.x = -0.62 - Math.max(0, -stride) * 0.22;
+}
+
+function animatePlayerFielding(rig, crouch = 0) {
+  const bend = Math.max(0, Math.min(1, crouch));
+  rig.root.position.y = 0;
+  rig.torsoGroup.rotation.x = 0.08 + bend * 0.42;
+  rig.torsoGroup.rotation.z = 0;
+  rig.leftLeg.hipPivot.rotation.x = -0.12 - bend * 0.42;
+  rig.rightLeg.hipPivot.rotation.x = -0.12 - bend * 0.42;
+  rig.leftLeg.kneePivot.rotation.x = 0.12 + bend * 0.78;
+  rig.rightLeg.kneePivot.rotation.x = 0.12 + bend * 0.78;
+  rig.leftArm.shoulderPivot.rotation.x = -0.25 - bend * 0.72;
+  rig.rightArm.shoulderPivot.rotation.x = -0.25 - bend * 0.72;
+  rig.leftArm.elbowPivot.rotation.x = -0.55 - bend * 0.28;
+  rig.rightArm.elbowPivot.rotation.x = -0.55 - bend * 0.28;
+}
+
+function updatePlayerRigAppearance(rig, options) {
+  if (!rig) return;
+  const {
+    primaryHex,
+    secondaryHex,
+    teamCode,
+    jerseyNum,
+    archetypeIdx,
+    hasHelmet
+  } = options;
+
+  const arch = PLAYER_ARCHETYPES[archetypeIdx % PLAYER_ARCHETYPES.length];
+  rig.skinMat.color.set(arch.skin);
+  rig.faceMat.map = createFaceTexture(archetypeIdx);
+  rig.faceMat.needsUpdate = true;
+
+  rig.jerseyMat.map = createJerseyTexture(primaryHex, secondaryHex, teamCode, jerseyNum);
+  rig.jerseyMat.needsUpdate = true;
+
+  rig.sleeveMat.color.set(primaryHex);
+  rig.trimMat.color.set(secondaryHex);
+  rig.pantsMat.color.set(primaryHex);
+  rig.domeMat.color.set(primaryHex);
+
+  if (typeof hasHelmet === 'boolean') {
+    rig.helmetGroup.visible = hasHelmet;
+    rig.capGroup.visible = !hasHelmet;
+  }
+}
+
+function initGraphicsEngine() {
+  if (typeof THREE !== 'undefined') {
+    try {
+      initThreeJS();
+      use3D = true;
+      document.getElementById('render-mode-badge').textContent = '3D WebGL';
+      return;
+    } catch (e) {
+      console.warn('Three.js failed, switching to 2D fallback:', e);
+    }
+  }
+  use3D = false;
+  document.getElementById('render-mode-badge').textContent = '2D Stadium Mode';
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('fallback-canvas').style.display = 'block';
+}
+
+function initThreeJS() {
+  const container = document.getElementById('game-container');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x09162b);
+  scene.fog = new THREE.FogExp2(0x09162b, 0.0042);
+
+  camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 400);
+  camera.position.set(8.2, 7.1, -19.5);
+  camera.lookAt(0, 1.15, 1.5);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.65));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  const hemiLight = new THREE.HemisphereLight(0xeef6ff, 0x1b4332, 0.95);
+  scene.add(hemiLight);
+
+  const flood1 = new THREE.DirectionalLight(0xffffff, 1.15);
+  flood1.position.set(28, 52, -22);
+  flood1.castShadow = true;
+  flood1.shadow.mapSize.width = 1024;
+  flood1.shadow.mapSize.height = 1024;
+  scene.add(flood1);
+
+  const flood2 = new THREE.DirectionalLight(0x90caf9, 0.55);
+  flood2.position.set(-35, 42, 30);
+  scene.add(flood2);
+
+  // Stadium Outfield Grass
+  const fieldGeo = new THREE.CircleGeometry(72, 64);
+  const fieldMat = new THREE.MeshLambertMaterial({ color: 0x1e6f38 });
+  const fieldMesh = new THREE.Mesh(fieldGeo, fieldMat);
+  fieldMesh.rotation.x = -Math.PI / 2;
+  fieldMesh.receiveShadow = true;
+  scene.add(fieldMesh);
+
+  // 30-yard Inner Circle
+  const innerRingGeo = new THREE.RingGeometry(27.2, 27.5, 64);
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+  const innerRing = new THREE.Mesh(innerRingGeo, lineMat);
+  innerRing.rotation.x = -Math.PI / 2;
+  innerRing.position.y = 0.02;
+  scene.add(innerRing);
+
+  // Boundary Rope
+  const boundaryGeo = new THREE.TorusGeometry(66, 0.28, 8, 96);
+  const boundaryMat = new THREE.MeshLambertMaterial({ color: 0xffca28 });
+  const boundaryRope = new THREE.Mesh(boundaryGeo, boundaryMat);
+  boundaryRope.rotation.x = Math.PI / 2;
+  boundaryRope.position.y = 0.25;
+  scene.add(boundaryRope);
+
+  // Stadium Stands & Floodlight Towers
+  const standGeo = new THREE.CylinderGeometry(84, 73, 16, 48, 1, true);
+  const standMat = new THREE.MeshLambertMaterial({ color: 0x16243d, side: THREE.BackSide });
+  const stands = new THREE.Mesh(standGeo, standMat);
+  stands.position.y = 8;
+  scene.add(stands);
+
+  // Multi-tier seating and a procedural crowd (instanced for mobile performance)
+  const tierMat = new THREE.MeshStandardMaterial({ color: 0x263957, roughness: 0.92 });
+  [3.2, 6.5, 9.8, 13.0].forEach((y, i) => {
+    const tier = new THREE.Mesh(new THREE.TorusGeometry(78 + i * 1.1, 0.48, 5, 96), tierMat);
+    tier.position.y = y;
+    tier.rotation.x = Math.PI / 2;
+    scene.add(tier);
+  });
+  const crowdGeo = new THREE.SphereGeometry(0.19, 5, 4);
+  const crowdMat = new THREE.MeshStandardMaterial({ roughness: 0.88, vertexColors: true });
+  const crowdCount = 1450;
+  const crowd = new THREE.InstancedMesh(crowdGeo, crowdMat, crowdCount);
+  const dummy = new THREE.Object3D();
+  const crowdPalette = [0xe7edf6, 0xffca28, 0x29b6f6, 0xf06292, 0x66bb6a, 0xffffff, 0x9fa8da];
+  for (let i = 0; i < crowdCount; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 77 + Math.random() * 5.5;
+    dummy.position.set(Math.cos(a) * r, 2.8 + Math.random() * 10.8, Math.sin(a) * r);
+    const sc = 0.55 + Math.random() * 0.75;
+    dummy.scale.set(sc, sc * (1.1 + Math.random() * 0.8), sc);
+    dummy.rotation.y = a;
+    dummy.updateMatrix();
+    crowd.setMatrixAt(i, dummy.matrix);
+    crowd.setColorAt(i, new THREE.Color(crowdPalette[(Math.random() * crowdPalette.length) | 0]));
+  }
+  crowd.instanceMatrix.needsUpdate = true;
+  scene.add(crowd);
+
+  // Mown outfield bands, subtle broadcast-style grass pattern
+  [31, 39, 47, 55, 63].forEach((r, i) => {
+    const band = new THREE.Mesh(new THREE.RingGeometry(r, r + 3.8, 96), new THREE.MeshLambertMaterial({
+      color: i % 2 ? 0x277a3d : 0x216f37, side: THREE.DoubleSide
+    }));
+    band.rotation.x = -Math.PI / 2;
+    band.position.y = 0.012 + i * 0.001;
+    scene.add(band);
+  });
+
+  // LED-style boundary advertising boards
+  const adColors = [0x00c853, 0x1565c0, 0xffb300, 0xd81b60, 0xffffff, 0x00acc1];
+  for (let i = 0; i < 42; i++) {
+    const a = (i / 42) * Math.PI * 2;
+    const r = 65.2;
+    const board = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.78, 0.32), new THREE.MeshStandardMaterial({
+      color: adColors[i % adColors.length], emissive: adColors[i % adColors.length], emissiveIntensity: 0.16, roughness: 0.45
+    }));
+    board.position.set(Math.sin(a) * r, 0.55, Math.cos(a) * r);
+    board.rotation.y = a;
+    scene.add(board);
+  }
+
+  [[-55, -55], [55, -55], [-55, 55], [55, 55]].forEach(([tx, tz]) => {
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.8, 36, 8),
+      new THREE.MeshLambertMaterial({ color: 0x90a4ae })
+    );
+    pole.position.set(tx, 18, tz);
+    const bank = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 3.2, 1.2),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    bank.position.set(tx, 36, tz);
+    bank.lookAt(0, 0, 0);
+    scene.add(pole, bank);
+  });
+
+  // Cricket Pitch & Crease Markings
+  const pitchGeo = new THREE.BoxGeometry(3.1, 0.05, 22.5);
+  const pitchCanvas = document.createElement('canvas');
+  pitchCanvas.width = 256; pitchCanvas.height = 512;
+  const pctx = pitchCanvas.getContext('2d');
+  pctx.fillStyle = '#b99a70'; pctx.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 1800; i++) {
+    pctx.fillStyle = i % 3 ? 'rgba(75,54,34,.10)' : 'rgba(255,235,190,.12)';
+    pctx.fillRect(Math.random() * 256, Math.random() * 512, 1 + Math.random() * 3, 1 + Math.random() * 8);
+  }
+  const pitchTexture = new THREE.CanvasTexture(pitchCanvas);
+  pitchTexture.wrapS = pitchTexture.wrapT = THREE.RepeatWrapping;
+  pitchTexture.repeat.set(1, 1);
+  const pitchMat = new THREE.MeshStandardMaterial({ map: pitchTexture, roughness: 0.96 });
+  const pitchMesh = new THREE.Mesh(pitchGeo, pitchMat);
+  pitchMesh.position.y = 0.025;
+  pitchMesh.receiveShadow = true;
+  scene.add(pitchMesh);
+
+  [-9.6, 9.6].forEach(zPos => {
+    const crease = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 0.08), lineMat);
+    crease.rotation.x = -Math.PI / 2;
+    crease.position.set(0, 0.055, zPos);
+    scene.add(crease);
+  });
+
+  // Stumps & Bails
+  const stumpMat = new THREE.MeshLambertMaterial({ color: 0xf5deb3 });
+  const bailMat = new THREE.MeshLambertMaterial({ color: 0xff5252 });
+  [-10.1, 10.1].forEach((zEnd, endIdx) => {
+    [-0.14, 0, 0.14].forEach(xOff => {
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.72, 8), stumpMat);
+      stump.position.set(xOff, 0.36, zEnd);
+      stump.castShadow = true;
+      scene.add(stump);
+    });
+    const bail = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.03), bailMat);
+    bail.position.set(0, 0.735, zEnd);
+    scene.add(bail);
+    if (endIdx === 0) bailsMeshes.push(bail);
+  });
+
+  // Bowling Pitch Target Ring
+  targetRingMesh = new THREE.Mesh(
+    new THREE.RingGeometry(0.18, 0.34, 24),
+    new THREE.MeshBasicMaterial({ color: 0x00e676, side: THREE.DoubleSide })
+  );
+  targetRingMesh.rotation.x = -Math.PI / 2;
+  targetRingMesh.position.set(0, 0.065, -4.5);
+  targetRingMesh.visible = false;
+  scene.add(targetRingMesh);
+
+  // Cricket Ball
+  ballMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.095, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0xd50000, roughness: 0.35 })
+  );
+  ballMesh.castShadow = true;
+  const seam = new THREE.Mesh(new THREE.TorusGeometry(0.066, 0.0045, 5, 32), new THREE.MeshBasicMaterial({ color: 0xffd6d6 }));
+  seam.rotation.set(0.8, 0.35, 0.45);
+  ballMesh.add(seam);
+  scene.add(ballMesh);
+
+  // Create Articulated Realistic Human Players (WCC 2 Style)
+  strikerRig = createHumanPlayerRig({
+    primaryHex: '#00a859',
+    secondaryHex: '#d4af37',
+    teamCode: 'PAK',
+    jerseyNum: 56,
+    archetypeIdx: 1,
+    isBatter: true,
+    hasHelmet: true
+  });
+
+  // Sculpted English Willow Cricket Bat attached to Striker's Right Hand
+  const batGroup = new THREE.Group();
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+  const willowMat = new THREE.MeshStandardMaterial({ color: 0xd8a86e, roughness: 0.45 });
+  const stickerMat = new THREE.MeshStandardMaterial({ color: 0x00e676, roughness: 0.35 });
+
+  const batHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.24, 10), handleMat);
+  batHandle.position.y = -0.05;
+  batGroup.add(batHandle);
+
+  const batBlade = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.56, 0.036), willowMat);
+  batBlade.position.y = -0.44;
+  batBlade.castShadow = true;
+  batGroup.add(batBlade);
+
+  const batSpine = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.52, 0.018), stickerMat);
+  batSpine.position.set(0, -0.44, -0.02);
+  batGroup.add(batSpine);
+
+  batGroup.position.set(0, -0.25, 0.02);
+  strikerRig.rightArm.elbowPivot.add(batGroup);
+
+  nonStrikerRig = createHumanPlayerRig({
+    primaryHex: '#00a859',
+    secondaryHex: '#d4af37',
+    teamCode: 'PAK',
+    jerseyNum: 16,
+    archetypeIdx: 0,
+    isBatter: true,
+    hasHelmet: true
+  });
+
+  // Non-striker bat
+  const nsBat = batGroup.clone();
+  nonStrikerRig.rightArm.elbowPivot.add(nsBat);
+
+  bowlerRig = createHumanPlayerRig({
+    primaryHex: '#f4c430',
+    secondaryHex: '#006847',
+    teamCode: 'AUS',
+    jerseyNum: 56,
+    archetypeIdx: 7,
+    hasHelmet: false
+  });
+
+  keeperRig = createHumanPlayerRig({
+    primaryHex: '#f4c430',
+    secondaryHex: '#006847',
+    teamCode: 'AUS',
+    jerseyNum: 48,
+    archetypeIdx: 6,
+    isKeeper: true,
+    hasHelmet: true
+  });
+
+  scene.add(strikerRig.root, nonStrikerRig.root, bowlerRig.root, keeperRig.root);
+
+  // 9 Outfielders with distinct faces & squad numbers
+  const fielderNums = [30, 32, 17, 8, 9, 21, 14, 11, 38];
+  FIELD_POSITIONS.forEach((fp, idx) => {
+    const fRig = createHumanPlayerRig({
+      primaryHex: '#f4c430',
+      secondaryHex: '#006847',
+      teamCode: 'AUS',
+      jerseyNum: fielderNums[idx % fielderNums.length],
+      archetypeIdx: (idx + 2) % PLAYER_ARCHETYPES.length,
+      hasHelmet: false
+    });
+    fRig.root.position.set(fp.x, 0, fp.z);
+    fRig.root.lookAt(0, 0, -9.5);
+    scene.add(fRig.root);
+    fielderRigs.push(fRig);
+  });
+
+  window.addEventListener('resize', () => {
+    if (!use3D) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function applyTeamAppearanceTo3D(batCode, bowlCode) {
+  if (!use3D) return;
+  const batTeam = TEAMS[batCode];
+  const bowlTeam = TEAMS[bowlCode];
+
+  updatePlayerRigAppearance(strikerRig, {
+    primaryHex: batTeam.primary,
+    secondaryHex: batTeam.secondary,
+    teamCode: batTeam.code,
+    jerseyNum: 56,
+    archetypeIdx: 0,
+    hasHelmet: true
+  });
+
+  updatePlayerRigAppearance(nonStrikerRig, {
+    primaryHex: batTeam.primary,
+    secondaryHex: batTeam.secondary,
+    teamCode: batTeam.code,
+    jerseyNum: 16,
+    archetypeIdx: 1,
+    hasHelmet: true
+  });
+
+  updatePlayerRigAppearance(bowlerRig, {
+    primaryHex: bowlTeam.primary,
+    secondaryHex: bowlTeam.secondary,
+    teamCode: bowlTeam.code,
+    jerseyNum: 10,
+    archetypeIdx: 7,
+    hasHelmet: false
+  });
+
+  updatePlayerRigAppearance(keeperRig, {
+    primaryHex: bowlTeam.primary,
+    secondaryHex: bowlTeam.secondary,
+    teamCode: bowlTeam.code,
+    jerseyNum: 17,
+    archetypeIdx: 6,
+    hasHelmet: true
+  });
+
+  const fielderNums = [30, 32, 17, 8, 9, 21, 14, 11, 38];
+  fielderRigs.forEach((fRig, idx) => {
+    updatePlayerRigAppearance(fRig, {
+      primaryHex: bowlTeam.primary,
+      secondaryHex: bowlTeam.secondary,
+      teamCode: bowlTeam.code,
+      jerseyNum: fielderNums[idx % fielderNums.length],
+      archetypeIdx: (idx + 2) % PLAYER_ARCHETYPES.length,
+      hasHelmet: false
+    });
+  });
+}
+
+function refreshActivePlayerAppearances() {
+  if (!use3D) return;
+  const inn = getCurrentInnings();
+  if (!inn) return;
+
+  const batTeam = TEAMS[inn.battingCode];
+  const bowlTeam = TEAMS[inn.bowlingCode];
+  const jerseyPool = [7, 56, 16, 39, 18, 45, 93, 10, 71, 97, 23];
+
+  updatePlayerRigAppearance(strikerRig, {
+    primaryHex: batTeam.primary,
+    secondaryHex: batTeam.secondary,
+    teamCode: batTeam.code,
+    jerseyNum: jerseyPool[inn.strikerIdx % jerseyPool.length],
+    archetypeIdx: inn.strikerIdx,
+    hasHelmet: true
+  });
+
+  updatePlayerRigAppearance(nonStrikerRig, {
+    primaryHex: batTeam.primary,
+    secondaryHex: batTeam.secondary,
+    teamCode: batTeam.code,
+    jerseyNum: jerseyPool[inn.nonStrikerIdx % jerseyPool.length],
+    archetypeIdx: inn.nonStrikerIdx,
+    hasHelmet: true
+  });
+
+  updatePlayerRigAppearance(bowlerRig, {
+    primaryHex: bowlTeam.primary,
+    secondaryHex: bowlTeam.secondary,
+    teamCode: bowlTeam.code,
+    jerseyNum: jerseyPool[inn.currentBowlerIdx % jerseyPool.length],
+    archetypeIdx: inn.currentBowlerIdx,
+    hasHelmet: false
+  });
+}
+
+function resetActorsPositions() {
+  state.fielderPositions = FIELD_POSITIONS.map(fp => ({ x: fp.x, z: fp.z }));
+  state.bowlerPosZ = 14.5;
+
+  if (!use3D) return;
+
+  // Striker in authentic side-on batting guard stance facing bowler (+Z)
+  strikerRig.root.position.set(-0.38, 0, -9.4);
+  strikerRig.root.rotation.set(0, -1.25, 0);
+  strikerRig.headGroup.rotation.set(0, 1.15, 0); // Looking straight down the pitch at the bowler!
+  strikerRig.torsoGroup.rotation.set(0.12, 0.25, 0);
+  strikerRig.rightArm.shoulderPivot.rotation.set(-0.65, 0, -0.25);
+  strikerRig.rightArm.elbowPivot.rotation.set(-0.95, 0, 0);
+  strikerRig.leftArm.shoulderPivot.rotation.set(-0.55, 0.35, 0.35);
+  strikerRig.leftArm.elbowPivot.rotation.set(-0.85, 0, 0);
+  strikerRig.leftLeg.hipPivot.rotation.set(-0.12, 0, -0.08);
+  strikerRig.leftLeg.kneePivot.rotation.set(0.18, 0, 0);
+  strikerRig.rightLeg.hipPivot.rotation.set(0.12, 0, 0.08);
+  strikerRig.rightLeg.kneePivot.rotation.set(0.18, 0, 0);
+
+  // Non-striker ready to back up at bowler's end
+  nonStrikerRig.root.position.set(0.72, 0, 9.2);
+  nonStrikerRig.root.rotation.set(0, Math.PI, 0);
+  nonStrikerRig.headGroup.rotation.set(0, 0, 0);
+  nonStrikerRig.rightArm.shoulderPivot.rotation.set(-0.35, 0, -0.15);
+  nonStrikerRig.rightArm.elbowPivot.rotation.set(-0.55, 0, 0);
+  nonStrikerRig.leftArm.shoulderPivot.rotation.set(-0.2, 0, 0.15);
+  nonStrikerRig.leftArm.elbowPivot.rotation.set(-0.3, 0, 0);
+
+  // Bowler at top of run-up facing striker (-Z)
+  bowlerRig.root.position.set(0.4, 0, 14.5);
+  bowlerRig.root.rotation.set(0, Math.PI, 0);
+  bowlerRig.torsoGroup.rotation.set(0, 0, 0);
+  bowlerRig.rightArm.shoulderPivot.rotation.set(0, 0, -0.1);
+  bowlerRig.rightArm.elbowPivot.rotation.set(-0.2, 0, 0);
+  bowlerRig.leftArm.shoulderPivot.rotation.set(0, 0, 0.1);
+  bowlerRig.leftArm.elbowPivot.rotation.set(-0.2, 0, 0);
+  bowlerRig.leftLeg.hipPivot.rotation.set(0, 0, 0);
+  bowlerRig.leftLeg.kneePivot.rotation.set(0, 0, 0);
+  bowlerRig.rightLeg.hipPivot.rotation.set(0, 0, 0);
+  bowlerRig.rightLeg.kneePivot.rotation.set(0, 0, 0);
+
+  // Wicketkeeper in authentic crouch behind stumps
+  keeperRig.root.position.set(0, -0.18, -12.3);
+  keeperRig.root.rotation.set(0, 0, 0);
+  keeperRig.torsoGroup.rotation.set(0.48, 0, 0);
+  keeperRig.headGroup.rotation.set(-0.38, 0, 0);
+  keeperRig.leftLeg.hipPivot.rotation.set(-0.75, 0, -0.18);
+  keeperRig.leftLeg.kneePivot.rotation.set(1.25, 0, 0);
+  keeperRig.rightLeg.hipPivot.rotation.set(-0.75, 0, 0.18);
+  keeperRig.rightLeg.kneePivot.rotation.set(1.25, 0, 0);
+  keeperRig.leftArm.shoulderPivot.rotation.set(-0.75, 0, -0.2);
+  keeperRig.leftArm.elbowPivot.rotation.set(-0.65, 0, 0);
+  keeperRig.rightArm.shoulderPivot.rotation.set(-0.75, 0, 0.2);
+  keeperRig.rightArm.elbowPivot.rotation.set(-0.65, 0, 0);
+
+  FIELD_POSITIONS.forEach((fp, idx) => {
+    const fRig = fielderRigs[idx];
+    fRig.root.position.set(fp.x, 0, fp.z);
+    fRig.root.lookAt(0, 0, -9.5);
+    fRig.leftLeg.hipPivot.rotation.set(0, 0, 0);
+    fRig.leftLeg.kneePivot.rotation.set(0, 0, 0);
+    fRig.rightLeg.hipPivot.rotation.set(0, 0, 0);
+    fRig.rightLeg.kneePivot.rotation.set(0, 0, 0);
+    fRig.leftArm.shoulderPivot.rotation.set(-0.25, 0, -0.15);
+    fRig.rightArm.shoulderPivot.rotation.set(-0.25, 0, 0.15);
+  });
+
+  if (bailsMeshes[0]) {
+    bailsMeshes[0].position.set(0, 0.735, -10.1);
+    bailsMeshes[0].rotation.set(0, 0, 0);
+  }
+}
+
+function updatePitchTargetVisual(visible) {
+  if (!use3D || !targetRingMesh) return;
+  targetRingMesh.visible = visible;
+  targetRingMesh.position.set(state.bowlAimX, 0.065, state.bowlAimZ);
+}
+
+let batSwingAnimTimer = 0;
+function triggerBatterSwingAnim() {
+  batSwingAnimTimer = 0.52;
+}
+
+function toggleCameraView() {
+  state.cameraMode = (state.cameraMode + 1) % 3;
+}
+
+// -----------------------------
+// 8. MAIN SIMULATION & RENDER LOOP
+// -----------------------------
+// Broadcast camera director: both camera position and look target are damped every frame.
+const broadcastCamera = {
+  position: null,
+  target: null,
+  lastPhase: '',
+  pitchSeen: false
+};
+
+function dampVector(current, desired, lambda, dt) {
+  current.lerp(desired, 1 - Math.exp(-lambda * dt));
+}
+
+function getBroadcastCameraShot(now) {
+  const ball = state.ballPos;
+  const eventActive = state.cameraEvent && now < state.cameraEventUntil;
+
+  if (state.cameraMode === 1) {
+    return {
+      position: new THREE.Vector3(0, 44, -48),
+      target: new THREE.Vector3(0, 0, 2),
+      speed: 3.8
+    };
+  }
+  if (state.cameraMode === 2) {
+    return {
+      position: new THREE.Vector3(-1.35, 1.85, -7.2),
+      target: new THREE.Vector3(-0.35, 1.38, -9.4),
+      speed: 5.5
+    };
+  }
+
+  // Brief reaction shots after a wicket or boundary, then return to the live play.
+  if (eventActive && state.cameraEvent === 'WICKET') {
+    return {
+      position: new THREE.Vector3(4.8, 3.0, -13.8),
+      target: new THREE.Vector3(0, 1.55, -9.5),
+      speed: 2.7
+    };
+  }
+  if (eventActive && state.cameraEvent === 'SIX') {
+    return {
+      position: new THREE.Vector3(ball.x * 0.3 + 2, 15.5, ball.z - 22),
+      target: new THREE.Vector3(ball.x, Math.max(2, ball.y), ball.z + 8),
+      speed: 2.4
+    };
+  }
+  if (eventActive && state.cameraEvent === 'FOUR') {
+    return {
+      position: new THREE.Vector3(ball.x * 0.42 + 9, 7.5, ball.z - 13),
+      target: new THREE.Vector3(ball.x, Math.max(0.7, ball.y), ball.z + 5),
+      speed: 3.0
+    };
+  }
+
+  if (state.phase === 'BOWLING_RUNUP') {
+    let handTarget = new THREE.Vector3(0.25, 1.8, state.bowlerPosZ - 0.25);
+    if (use3D && bowlerRig && bowlerRig.rightArm && bowlerRig.rightArm.hand) {
+      scene.updateMatrixWorld(true);
+      bowlerRig.rightArm.hand.getWorldPosition(handTarget);
+    }
+    return {
+      position: new THREE.Vector3(handTarget.x + 4.8, handTarget.y + 2.2, handTarget.z + 6.0),
+      target: handTarget,
+      speed: 5.6
+    };
+  }
+
+  if (state.phase === 'BALL_IN_FLIGHT') {
+    const velocity = state.ballVel;
+    const lead = new THREE.Vector3(velocity.x, velocity.y * 0.16, velocity.z).multiplyScalar(0.13);
+    const trackingTarget = new THREE.Vector3(ball.x, Math.max(0.16, ball.y), ball.z).add(lead);
+    if (state.ballBounces === 0) {
+      return {
+        position: new THREE.Vector3(ball.x + 10.2, Math.max(2.8, ball.y + 2.8), ball.z + 5.0),
+        target: trackingTarget,
+        speed: 6.8
+      };
+    }
+    return {
+      position: new THREE.Vector3(ball.x - 4.8, Math.max(2.0, ball.y + 1.9), ball.z + 3.6),
+      target: trackingTarget,
+      speed: 7.8
+    };
+  }
+
+  if (state.phase === 'BALL_HIT') {
+    const fielder = state.activeFielderIdx >= 0
+      ? state.fielderPositions[state.activeFielderIdx] : null;
+    if (fielder && Math.hypot(ball.x - fielder.x, ball.z - fielder.z) < 20) {
+      // Cut toward the fielder's chase lane while retaining the ball in frame.
+      return {
+        position: new THREE.Vector3(fielder.x + 8, 7.8, fielder.z + 11),
+        target: new THREE.Vector3(ball.x, Math.max(0.2, ball.y), ball.z),
+        speed: 3.4
+      };
+    }
+    // Elevated long-lens ball tracking for lofted shots and ground strokes.
+    return {
+      position: new THREE.Vector3(ball.x * 0.34 + 7.5, Math.max(7.5, ball.y + 7), ball.z - 13),
+      target: new THREE.Vector3(ball.x, Math.max(0.2, ball.y), ball.z),
+      speed: 3.8
+    };
+  }
+
+  // Default end-on broadcast master shot between deliveries.
+  return {
+    position: new THREE.Vector3(8.2, 7.1, -19.5),
+    target: new THREE.Vector3(0, 1.15, 1.5),
+    speed: 2.8
+  };
+}
+
+let lastFrameTime = performance.now();
+
+function gameLoop(now) {
+  requestAnimationFrame(gameLoop);
+  const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+
+  if (state.paused) {
+    if (use3D && renderer) renderer.render(scene, camera);
+    else render2DFallback();
+    return;
+  }
+
+  // Oscillate Timing / Power Meters
+  if (state.phase === 'AIMING' || state.phase === 'BOWLING_RUNUP' || state.phase === 'BALL_IN_FLIGHT') {
+    state.batMeterVal += state.batMeterDir * dt * 1.45;
+    if (state.batMeterVal >= 1) { state.batMeterVal = 1; state.batMeterDir = -1; }
+    if (state.batMeterVal <= 0) { state.batMeterVal = 0; state.batMeterDir = 1; }
+    const batCursor = document.getElementById('bat-meter-cursor');
+    if (batCursor) batCursor.style.left = `calc(${state.batMeterVal * 100}% - 3px)`;
+  }
+
+  if (state.phase === 'AIMING' && !isPlayerBatting()) {
+    state.bowlMeterVal += state.bowlMeterDir * dt * 1.35;
+    if (state.bowlMeterVal >= 1) { state.bowlMeterVal = 1; state.bowlMeterDir = -1; }
+    if (state.bowlMeterVal <= 0) { state.bowlMeterVal = 0; state.bowlMeterDir = 1; }
+    const bowlCursor = document.getElementById('bowl-meter-cursor');
+    if (bowlCursor) bowlCursor.style.bottom = `calc(${state.bowlMeterVal * 100}% - 2.5px)`;
+    const speedReadout = document.getElementById('bowl-speed-readout');
+    if (speedReadout) {
+      const baseKmh = state.bowlType === 'FAST' ? 128 : (state.bowlType === 'SWING' ? 120 : 82);
+      const kmh = Math.round(baseKmh + state.bowlMeterVal * 22);
+      speedReadout.textContent = `${kmh} km/h`;
+    }
+  }
+
+  // Subtle realistic human breathing & batter trigger-movement idle animation
+  if (use3D && strikerRig && keeperRig) {
+    const idleWave = Math.sin(now * 0.0045);
+    if (batSwingAnimTimer <= 0) {
+      strikerRig.torsoGroup.position.y = 1.02 + idleWave * 0.012;
+      strikerRig.rightArm.shoulderPivot.rotation.x = -0.65 + idleWave * 0.06;
+      strikerRig.leftArm.shoulderPivot.rotation.x = -0.55 + idleWave * 0.06;
+    }
+    keeperRig.root.position.y = -0.18 + Math.abs(Math.sin(now * 0.0035)) * 0.03;
+  }
+
+  // Physics & Articulated Character Animations by Phase
+  if (state.phase === 'BOWLING_RUNUP') {
+    state.deliveryTimer += dt;
+    const progress = Math.min(1, state.deliveryTimer / 0.92);
+    state.bowlerPosZ = 14.5 - progress * 5.0;
+
+    if (use3D && bowlerRig) {
+      bowlerRig.root.position.z = state.bowlerPosZ;
+
+      if (progress < 0.72) {
+        // Athletic running stride (alternating knees & pumping arms)
+        const stride = Math.sin(progress * Math.PI * 6);
+        bowlerRig.leftLeg.hipPivot.rotation.x = stride * 0.75;
+        bowlerRig.leftLeg.kneePivot.rotation.x = Math.max(0, -stride * 0.85);
+        bowlerRig.rightLeg.hipPivot.rotation.x = -stride * 0.75;
+        bowlerRig.rightLeg.kneePivot.rotation.x = Math.max(0, stride * 0.85);
+
+        bowlerRig.leftArm.shoulderPivot.rotation.x = -stride * 0.58 - 0.12;
+        bowlerRig.leftArm.elbowPivot.rotation.x = -0.72 - Math.max(0, stride) * 0.18;
+        bowlerRig.rightArm.shoulderPivot.rotation.x = stride * 0.58 - 0.12;
+        bowlerRig.rightArm.elbowPivot.rotation.x = -0.72 - Math.max(0, -stride) * 0.18;
+        bowlerRig.torsoGroup.rotation.x = 0.10 + Math.abs(stride) * 0.07;
+        bowlerRig.torsoGroup.rotation.z = stride * 0.035;
+        bowlerRig.root.rotation.x = 0.025;
+        bowlerRig.root.position.y = Math.max(0, Math.cos(progress * Math.PI * 6)) * 0.055;
+      } else {
+        // Bound & Full Bowling Arm Windmill Release Action
+        const releaseT = (progress - 0.72) / 0.28;
+        bowlerRig.root.position.y = Math.sin(releaseT * Math.PI) * 0.18;
+        bowlerRig.torsoGroup.rotation.x = 0.12 + releaseT * 0.48;
+        bowlerRig.torsoGroup.rotation.z = Math.sin(releaseT * Math.PI) * 0.10;
+        bowlerRig.root.rotation.x = -0.035 * releaseT;
+        bowlerRig.rightArm.shoulderPivot.rotation.x = -Math.PI * 1.38 * releaseT;
+        bowlerRig.rightArm.elbowPivot.rotation.x = -0.18 + releaseT * 0.22;
+        bowlerRig.leftArm.shoulderPivot.rotation.x = -0.85 + releaseT * 1.15;
+        bowlerRig.leftArm.elbowPivot.rotation.x = -0.65 + releaseT * 0.30;
+        bowlerRig.leftLeg.hipPivot.rotation.x = -0.62;
+        bowlerRig.rightLeg.hipPivot.rotation.x = 0.52;
+        bowlerRig.leftLeg.kneePivot.rotation.x = 0.32;
+        bowlerRig.rightLeg.kneePivot.rotation.x = 0.12;
+      }
+    }
+
+    // Keep the cricket ball parented visually to the bowler's moving hand throughout the run-up.
+    if (use3D && bowlerRig && state.ballHeldByBowler) {
+      scene.updateMatrixWorld(true);
+      const heldWorld = new THREE.Vector3();
+      bowlerRig.rightArm.handAnchor.getWorldPosition(heldWorld);
+      state.ballPos = { x: heldWorld.x, y: heldWorld.y, z: heldWorld.z };
+    }
+
+    if (state.deliveryTimer >= 0.92) {
+      releaseBallFromHand();
+    }
+  } else if (state.phase === 'BALL_IN_FLIGHT') {
+    const gravity = 13.2;
+    const previousZ = state.ballPos.z;
+
+    // Aerodynamic drag is subtle but continuous; swing/spin act as lateral forces.
+    state.ballVel.x += state.ballSwingX * dt;
+    state.ballVel.x += state.ballSpinX * (state.ballBounces > 0 ? 0.42 : 0.08) * dt;
+    state.ballVel.x *= Math.exp(-0.035 * dt);
+    state.ballVel.z *= Math.exp(-0.018 * dt);
+    state.ballVel.y -= gravity * dt;
+
+    state.ballPos.x += state.ballVel.x * dt;
+    state.ballPos.y += state.ballVel.y * dt;
+    state.ballPos.z += state.ballVel.z * dt;
+
+    // Bowler follow-through remains independent of the ball's physical trajectory.
+    if (use3D && bowlerRig && bowlerRig.root.position.z > 7.8) {
+      bowlerRig.root.position.z -= 2.2 * dt;
+      bowlerRig.torsoGroup.rotation.x = 0.22;
+      bowlerRig.rightArm.shoulderPivot.rotation.x = 0.45;
+    }
+
+    // A delivery pitches at the selected length marker, not at an arbitrary floor point.
+    const pitchZ = state.deliveryTargetZ;
+    const crossedPitch = state.ballBounces === 0 && previousZ > pitchZ && state.ballPos.z <= pitchZ;
+    if (crossedPitch) {
+      const span = Math.max(0.0001, previousZ - state.ballPos.z);
+      const alpha = Math.max(0, Math.min(1, (previousZ - pitchZ) / span));
+      const impactY = state.ballPos.y - state.ballVel.y * dt * (1 - alpha);
+      state.ballPos.z = pitchZ;
+      state.ballPos.x = state.deliveryTargetX;
+      state.ballPos.y = 0.145;
+
+      // Fast: skiddy low bounce; Swing: controlled seam deviation; Spin: higher, slower turn.
+      if (state.bowlType === 'FAST') {
+        state.ballVel.y = Math.max(2.8, Math.abs(state.ballVel.y) * 0.38);
+        state.ballVel.z *= 0.84;
+        state.ballVel.x *= 0.90;
+      } else if (state.bowlType === 'SWING') {
+        state.ballVel.y = Math.max(3.2, Math.abs(state.ballVel.y) * 0.48);
+        state.ballVel.z *= 0.80;
+        state.ballVel.x += state.ballSwingX * 0.10;
+      } else {
+        state.ballVel.y = Math.max(4.2, Math.abs(state.ballVel.y) * 0.64);
+        state.ballVel.z *= 0.72;
+        state.ballVel.x += state.ballSpinX * 0.20;
+      }
+      state.ballBounces = 1;
+      state.ballPos.y = 0.145;
+    }
+
+    // Safety contact for a low delivery that grazes the surface just before the marker.
+    if (state.ballBounces === 0 && state.ballPos.y <= 0.145 && state.ballPos.z <= pitchZ + 0.45) {
+      state.ballPos.y = 0.145;
+      state.ballVel.y = Math.max(2.8, Math.abs(state.ballVel.y) * (state.bowlType === 'SPIN' ? 0.68 : 0.44));
+      state.ballVel.z *= state.bowlType === 'SPIN' ? 0.72 : 0.83;
+      state.ballBounces = 1;
+    }
+
+    // If a very full delivery lands beyond the marker, keep it on the pitch with rolling friction.
+    if (state.ballBounces > 0 && state.ballPos.y <= 0.145 && state.ballVel.y < 0) {
+      state.ballPos.y = 0.145;
+      state.ballVel.y = 0;
+      state.ballVel.x *= Math.exp(-1.8 * dt);
+      state.ballVel.z *= Math.exp(-1.8 * dt);
+    }
+
+    // AI Batter auto-swing when CPU is batting
+    if (!isPlayerBatting() && !state.batSwung && state.ballPos.z <= -8.8) {
+      state.batSwung = true;
+      triggerBatterSwingAnim();
+      if (state.cpuPlannedSwing && state.cpuPlannedSwing.willSwing) {
+        resolveBatContact(
+          state.cpuPlannedSwing.quality,
+          state.cpuPlannedSwing.dir,
+          state.cpuPlannedSwing.loft
+        );
+      }
+    }
+
+    // Check stumps collision / keeper collection if still in flight past z = -10.1
+    if (state.phase === 'BALL_IN_FLIGHT' && state.ballPos.z <= -10.1) {
+      const hitStumps = Math.abs(state.ballPos.x) < 0.24 && state.ballPos.y < 0.78;
+      if (hitStumps) {
+        if (use3D && bailsMeshes[0]) {
+          bailsMeshes[0].position.set(0.4, 1.3, -11.2);
+          bailsMeshes[0].rotation.z = 1.2;
+        }
+        recordDeliveryOutcome(0, true, 'Bowled!', false);
+      } else {
+        recordDeliveryOutcome(0, false, 'Left alone / Missed to keeper', false);
+      }
+    }
+  } else if (state.phase === 'BALL_HIT') {
+    const g = 12.5;
+    state.ballVel.y -= g * dt;
+    state.ballVel.x *= Math.exp(-0.012 * dt);
+    state.ballVel.z *= Math.exp(-0.009 * dt);
+    state.ballPos.x += state.ballVel.x * dt;
+    state.ballPos.y += state.ballVel.y * dt;
+    state.ballPos.z += state.ballVel.z * dt;
+
+    // Ground bounce & friction
+    if (state.ballPos.y <= 0.145 && state.ballVel.y < 0) {
+      state.ballPos.y = 0.145;
+      state.ballVel.y = -state.ballVel.y * 0.52;
+      state.ballVel.x *= 0.84;
+      state.ballVel.z *= 0.84;
+      state.ballBounces += 1;
+    }
+
+    // Move & animate active fielder chasing the ball
+    if (state.activeFielderIdx >= 0) {
+      const fPos = state.fielderPositions[state.activeFielderIdx];
+      const dx = state.ballPos.x - fPos.x;
+      const dz = state.ballPos.z - fPos.z;
+      const dist = Math.hypot(dx, dz);
+      const diveRange = state.ballPos.y < 1.15 && dist < 4.8 && dist > 1.05;
+      if (diveRange && state.fielderDiveTimer <= 0) {
+        state.fielderDiveTimer = 0.72;
+        state.fielderDiveDir = dx >= 0 ? 1 : -1;
+      }
+      if (state.fielderDiveTimer <= 0 && dist > 0.4) {
+        fPos.x += (dx / dist) * 10.8 * dt;
+        fPos.z += (dz / dist) * 10.8 * dt;
+      }
+      if (use3D && fielderRigs[state.activeFielderIdx]) {
+        const fRig = fielderRigs[state.activeFielderIdx];
+        fRig.root.position.set(fPos.x, 0, fPos.z);
+        fRig.root.lookAt(state.ballPos.x, 0, state.ballPos.z);
+        const runCycle = now / 1000;
+        if (state.fielderDiveTimer > 0) {
+          state.fielderDiveTimer = Math.max(0, state.fielderDiveTimer - dt);
+          const diveT = 1 - state.fielderDiveTimer / 0.72;
+          fRig.root.position.y = Math.sin(diveT * Math.PI) * 0.72;
+          fRig.root.rotation.z = -state.fielderDiveDir * Math.sin(diveT * Math.PI) * 0.78;
+          fRig.torsoGroup.rotation.x = 0.85 + Math.sin(diveT * Math.PI) * 0.25;
+          fRig.leftArm.shoulderPivot.rotation.x = -1.45;
+          fRig.rightArm.shoulderPivot.rotation.x = -1.55;
+          fRig.leftLeg.hipPivot.rotation.x = 0.9;
+          fRig.rightLeg.hipPivot.rotation.x = 0.55;
+          fRig.leftLeg.kneePivot.rotation.x = 0.75;
+          fRig.rightLeg.kneePivot.rotation.x = 0.45;
+        } else if (dist > 1.6) {
+          fRig.root.rotation.z = 0;
+          animatePlayerRun(fRig, runCycle, 0.95);
+        } else {
+          fRig.root.rotation.z = 0;
+          animatePlayerFielding(fRig, Math.max(0, 1 - dist / 1.6));
+        }
+      }
+
+      // Catch check (before bounce) or Ground Field Stop
+      if (dist < 1.15 && state.ballPos.y < 2.2) {
+        if (state.ballBounces === 0 && state.ballPos.y > 0.35 && Math.hypot(state.ballPos.x, state.ballPos.z) > 14) {
+          recordDeliveryOutcome(0, true, `Caught by ${FIELD_POSITIONS[state.activeFielderIdx].name}!`, false);
+        } else if (state.ballBounces >= 1) {
+          const radialDist = Math.hypot(state.ballPos.x, state.ballPos.z);
+          const runsScored = radialDist > 42 ? 2 : (radialDist > 21 ? 1 : 0);
+          recordDeliveryOutcome(runsScored, false, `Fielded at ${FIELD_POSITIONS[state.activeFielderIdx].name}`, false);
+        }
+      }
+    }
+
+    // Boundary check (66m radius)
+    const distFromCenter = Math.hypot(state.ballPos.x, state.ballPos.z);
+    if (state.phase === 'BALL_HIT' && distFromCenter >= 66) {
+      if (state.ballBounces === 0) {
+        recordDeliveryOutcome(6, false, 'Cleared the ropes for SIX!', true);
+      } else {
+        recordDeliveryOutcome(4, false, 'Raced away to the boundary for FOUR!', true);
+      }
+    }
+
+    // Slow ball roll stop fallback
+    const horizSpeed = Math.hypot(state.ballVel.x, state.ballVel.z);
+    if (state.phase === 'BALL_HIT' && horizSpeed < 1.4 && state.ballBounces >= 1) {
+      const runsScored = distFromCenter > 36 ? 2 : (distFromCenter > 18 ? 1 : 0);
+      recordDeliveryOutcome(runsScored, false, 'Quick running between the wickets', false);
+    }
+  }
+
+  // Articulated Two-Handed Batter Swing Animation
+  if (use3D && strikerRig) {
+    if (batSwingAnimTimer > 0) {
+      batSwingAnimTimer -= dt;
+      const swingProgress = 1 - Math.max(0, batSwingAnimTimer / 0.52);
+      const trigger = Math.min(1, swingProgress * 3.2);
+      const contact = Math.max(0, Math.sin(Math.min(1, Math.max(0, (swingProgress - 0.18) / 0.58)) * Math.PI));
+      const followThrough = Math.max(0, (swingProgress - 0.72) / 0.28);
+      strikerRig.root.rotation.y = -1.25 + trigger * 0.18 + contact * 1.12 + followThrough * 0.18;
+      strikerRig.torsoGroup.rotation.y = 0.25 + trigger * 0.12 + contact * 0.58 + followThrough * 0.18;
+      strikerRig.rightArm.shoulderPivot.rotation.x = -0.65 - trigger * 0.18 - contact * 1.02 - followThrough * 0.28;
+      strikerRig.rightArm.elbowPivot.rotation.x = -0.95 + contact * 0.62 + followThrough * 0.22;
+      strikerRig.leftArm.shoulderPivot.rotation.x = -0.55 - trigger * 0.12 - contact * 0.94 - followThrough * 0.24;
+      strikerRig.leftArm.elbowPivot.rotation.x = -0.85 + contact * 0.52 + followThrough * 0.18;
+      strikerRig.leftLeg.hipPivot.rotation.x = -0.12 - contact * 0.28; // Front foot stride
+    } else if (state.phase === 'AIMING' || state.phase === 'BOWLING_RUNUP') {
+      const stanceBreath = Math.sin(now * 0.002) * 0.012;
+      strikerRig.root.rotation.y = -1.25;
+      strikerRig.torsoGroup.rotation.y = 0.25 + stanceBreath;
+      strikerRig.torsoGroup.rotation.x = 0.06;
+      strikerRig.leftLeg.kneePivot.rotation.x = 0.20 + Math.max(0, stanceBreath);
+      strikerRig.rightLeg.kneePivot.rotation.x = 0.18;
+    }
+  }
+
+  // Natural idle / readiness layer for all players not currently in a bespoke action.
+  if (use3D) {
+    const seconds = now / 1000;
+    animatePlayerIdle(nonStrikerRig, seconds, 0.8, 0.8);
+    animatePlayerIdle(keeperRig, seconds, 1.7, 0.65);
+
+    fielderRigs.forEach((rig, idx) => {
+      if (state.phase === 'BALL_HIT' && idx === state.activeFielderIdx) return;
+      animatePlayerIdle(rig, seconds, idx * 0.37, 0.55);
+      // Fielders stay in a low, alert ready stance between deliveries.
+      rig.leftLeg.kneePivot.rotation.x += 0.045;
+      rig.rightLeg.kneePivot.rotation.x += 0.045;
+      rig.torsoGroup.rotation.x += 0.025;
+    });
+
+    if (state.phase !== 'BOWLING_RUNUP' && bowlerRig) {
+      animatePlayerIdle(bowlerRig, seconds, 2.3, 0.7);
+    }
+  }
+
+  // Update 3D Ball & Camera
+  if (use3D) {
+    // Keep the render mesh hidden between deliveries; this prevents the reset spawn
+    // coordinate from appearing as a floating ball before the bowler starts moving.
+    ballMesh.visible = state.phase === 'BOWLING_RUNUP' || state.phase === 'BALL_IN_FLIGHT' || state.phase === 'BALL_HIT';
+    if (state.phase !== 'BOWLING_RUNUP' || ballMesh.parent !== (bowlerRig && bowlerRig.rightArm.handAnchor)) {
+      ballMesh.position.set(state.ballPos.x, state.ballPos.y, state.ballPos.z);
+    }
+    const ballSpeed = Math.hypot(state.ballVel.x, state.ballVel.y, state.ballVel.z);
+    if (ballSpeed > 0.05) {
+      ballMesh.rotation.x += state.ballVel.z * dt * 0.42;
+      ballMesh.rotation.z -= state.ballVel.x * dt * 0.42;
+    }
+
+    const shot = getBroadcastCameraShot(now);
+    if (!broadcastCamera.position) {
+      broadcastCamera.position = camera.position.clone();
+      broadcastCamera.target = new THREE.Vector3(0, 1.15, 1.5);
+    }
+    // Exponential damping is frame-rate independent and prevents abrupt camera snapping.
+    dampVector(broadcastCamera.position, shot.position, shot.speed, dt);
+    dampVector(broadcastCamera.target, shot.target, shot.speed * 1.15, dt);
+    camera.position.copy(broadcastCamera.position);
+    if (state.cameraShake > 0) {
+      const shake = state.cameraShake;
+      camera.position.x += (Math.random() - 0.5) * shake;
+      camera.position.y += (Math.random() - 0.5) * shake * 0.55;
+      state.cameraShake = Math.max(0, shake - dt * 1.8);
+    }
+    camera.lookAt(broadcastCamera.target);
+
+    renderer.render(scene, camera);
+  } else {
+    render2DFallback();
+  }
+}
+
+// -----------------------------
+// 9. 2D FALLBACK CANVAS RENDERER
+// -----------------------------
+function render2DFallback() {
+  const canvas = document.getElementById('fallback-canvas');
+  if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const scale = Math.min(canvas.width, canvas.height) / 150;
+
+  // Match 3D camera orientation: -X is screen-right, +X is screen-left; +Z is up-field, -Z is bottom (striker end)
+  const toScreenX = (wx) => cx - wx * scale;
+  const toScreenY = (wz) => cy - wz * scale;
+
+  ctx.fillStyle = '#0c1c33';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Outfield & Boundary
+  ctx.beginPath();
+  ctx.arc(cx, cy, 66 * scale, 0, Math.PI * 2);
+  ctx.fillStyle = '#1e6f38';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#ffca28';
+  ctx.stroke();
+
+  // Pitch
+  ctx.fillStyle = '#d7b98e';
+  ctx.fillRect(cx - 1.6 * scale, cy - 11.2 * scale, 3.2 * scale, 22.4 * scale);
+
+  // Bowling Target Ring (when player is aiming)
+  if (state.phase === 'AIMING' && !isPlayerBatting()) {
+    ctx.beginPath();
+    ctx.arc(toScreenX(state.bowlAimX), toScreenY(state.bowlAimZ), 4.5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#00e676';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Batters (Striker & Non-Striker)
+  const inn = getCurrentInnings();
+  ctx.fillStyle = inn ? TEAMS[inn.battingCode].primary : '#00e676';
+  [
+    { x: -0.35, z: -9.4 },
+    { x: 0.65, z: 9.2 }
+  ].forEach(bPos => {
+    ctx.beginPath();
+    ctx.arc(toScreenX(bPos.x), toScreenY(bPos.z), 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Fielders, Bowler & Wicketkeeper
+  ctx.fillStyle = inn ? TEAMS[inn.bowlingCode].primary : '#ffca28';
+  state.fielderPositions.forEach(fp => {
+    ctx.beginPath();
+    ctx.arc(toScreenX(fp.x), toScreenY(fp.z), 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  // Bowler & Keeper
+  [
+    { x: 0.4, z: state.bowlerPosZ },
+    { x: 0, z: -12.4 }
+  ].forEach(pPos => {
+    ctx.beginPath();
+    ctx.arc(toScreenX(pPos.x), toScreenY(pPos.z), 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Ball
+  ctx.beginPath();
+  ctx.arc(toScreenX(state.ballPos.x), toScreenY(state.ballPos.z), 3.8 + state.ballPos.y * 1.1, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff1744';
+  ctx.fill();
+}
+
+// -----------------------------
+// 10. KEYBOARD SHORTCUTS
+// -----------------------------
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'p') {
+    togglePause();
+    return;
+  }
+  if (state.paused) return;
+
+  if (isPlayerBatting()) {
+    if (key === 'a' || key === 'arrowleft') selectShotDir('LEG');
+    if (key === 'w' || key === 'arrowup') selectShotDir('STRAIGHT');
+    if (key === 'd' || key === 'arrowright') selectShotDir('OFF');
+    if (key === 'l') toggleLoft();
+    if (e.code === 'Space') {
+      e.preventDefault();
+      triggerBatSwing();
+    }
+  } else {
+    if (key === '1') selectBowlType('FAST');
+    if (key === '2') selectBowlType('SWING');
+    if (key === '3') selectBowlType('SPIN');
+    if (key === 'arrowleft' || key === 'a') nudgeBowlAim(-1, 0);
+    if (key === 'arrowright' || key === 'd') nudgeBowlAim(1, 0);
+    if (key === 'arrowup' || key === 'w') nudgeBowlAim(0, -1);
+    if (key === 'arrowdown' || key === 's') nudgeBowlAim(0, 1);
+    if (e.code === 'Space') {
+      e.preventDefault();
+      triggerBowlRelease();
+    }
+  }
+});
+
+// Boot Application
+initSetupUI();
+initGraphicsEngine();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
